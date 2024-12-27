@@ -1,4 +1,4 @@
-# Copyright 2022 Synnada, Inc.
+    # Copyright 2022 Synnada, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,18 +13,39 @@
 # limitations under the License.
 
 from mithril import IOKey
+from dataclasses import dataclass
 from mithril.models import (
     Add,
     BroadcastTo,
+    Buffer,
     Convolution2D,
     GroupNorm,
     Model,
     Pad,
+    Randn,
     Reshape,
     ScaledDotProduct,
     SiLU,
     Transpose,
+    Subtract,
+    Multiply
+
 )
+
+
+
+@dataclass
+class AutoEncoderParams:
+    resolution: int
+    in_channels: int
+    ch: int
+    out_ch: int
+    ch_mult: list[int]
+    num_res_blocks: int
+    z_channels: int
+    scale_factor: float
+    shift_factor: float
+
 
 
 def resnet_block(
@@ -110,8 +131,9 @@ def encoder(
     ch_mult: list[int],
     num_res_blocks: int,
     z_channels: int,
+    name: str | None = None,
 ):
-    encoder = Model()
+    encoder = Model(name=name)
     encoder += Convolution2D(3, ch, stride=1, padding=1, name="conv_in")("input")
 
     in_ch_mult = (1,) + tuple(ch_mult)
@@ -190,3 +212,70 @@ def decoder(ch: int, out_ch: int, ch_mult: list[int], num_res_blocks: int):
     )
 
     return decoder
+
+
+def diagonal_gaussian(sample: bool = True, chunk_dim: int = 1):
+    block = Model()
+
+    input = IOKey("input")
+    input = input.split(2, axis=1)
+
+    if sample:
+        std = (input[1] * 0.5).exp()
+        mean = input[0]
+        block += Randn()(shape=mean.shape(), output="randn")
+        output = mean + std * block.randn # type: ignore[attr-defined]
+    else:
+        output = input[0]
+
+    block += Buffer()(input=output, output=IOKey("output"))
+    return block
+
+
+def auto_encoder(
+    ae_params: AutoEncoderParams,
+):
+    model = Model(enforce_jit=False)
+    model += encoder(
+        ae_params.resolution,
+        ae_params.in_channels,
+        ae_params.ch,
+        ae_params.ch_mult,
+        ae_params.num_res_blocks,
+        ae_params.z_channels,
+        name="encoder",
+    )(input="input")
+    model += diagonal_gaussian()
+    
+    model += Subtract()(right=ae_params.shift_factor)
+    model +=  Multiply()(right=ae_params.scale_factor)
+
+    model += decoder(
+        ae_params.ch,
+        ae_params.out_ch,
+        ae_params.ch_mult,
+        ae_params.num_res_blocks,
+        ae_params.in_channels,
+        ae_params.resolution,
+        ae_params.z_channels,
+        name="decoder"
+    )(output="output")
+
+    return model
+
+def decode(ae_params: AutoEncoderParams):
+    model = Model(enforce_jit=False)
+    input = IOKey("input")
+    input = input / ae_params.scale_factor - ae_params.shift_factor
+    model += decoder(
+        ae_params.ch,
+        ae_params.out_ch,
+        ae_params.ch_mult,
+        ae_params.num_res_blocks,
+        ae_params.in_channels,
+        ae_params.resolution,
+        ae_params.z_channels,
+        name="decoder"
+    )(input = input, output="output")
+
+    return model

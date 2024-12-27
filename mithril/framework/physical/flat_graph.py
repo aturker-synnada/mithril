@@ -357,8 +357,10 @@ class FlatGraph(GenericDataType[DataType]):
             value: DataType | AllValueType
             if conn.key in data and data[conn.key].value is not TBD:
                 value = data[conn.key].value
-            else:
+            elif conn.key in constant_keys:
                 value = constant_keys.get(conn.key, TBD)
+            else:
+                return
 
             # If connection is valued, then compare values.
             if not isinstance(value, ToBeDetermined):

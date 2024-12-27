@@ -380,6 +380,9 @@ class StaticDataStore(Generic[DataType]):
                         kwargs["device"] = self.backend._device
 
                 static_value = fn(*args, **kwargs)
+                if isinstance(static_value, self.backend.DataType):
+                    static_value = self.backend.array(static_value)
+
 
                 # Check astype needed
                 if self.backend.is_manualgrad and is_type_adjustment_required(
@@ -391,7 +394,8 @@ class StaticDataStore(Generic[DataType]):
                     data = self._all_data[value]
                     if is_make_array_required(data):
                         static_value = self.backend.array(static_value)
-
+                if "up_1_block_0_norm2_scalaritem_output" in value:
+                    ...
                 _queue, _updates = self.add_static_data(value, static_value)
                 queue |= _queue
                 updates |= _updates

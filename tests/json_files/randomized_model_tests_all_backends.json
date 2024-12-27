@@ -1378,6 +1378,28 @@
         },
         "iterations": 5
     },
+    "test_scaled_dot_product_attention_4": {
+        "model": {
+            "name": "ScaledDotProduct",
+            "regular_args":{
+                "use_attn_mask": false,
+                "is_causal": false
+            }
+        },
+        "input_info": {
+            "query": {
+                "shapes": [[1,1], [24,24], [4336, 4336], [128, 128]]
+            },
+            "key": {
+                "shapes": [[1,1], [24,24], [4336, 4336], [128, 128]]
+            },
+            "value": {
+                "shapes": [[1,1], [24,24], [4336, 4336], [128, 128]]
+            }
+            
+        },
+        "iterations": 5
+    },
     "test_scaled_dot_product_attention_3": {
         "model": {
             "name": "ScaledDotProduct",

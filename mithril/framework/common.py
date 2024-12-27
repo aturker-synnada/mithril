@@ -869,7 +869,7 @@ class TemplateBase:
         if isinstance(key, slice):
             start, stop, step = key.start, key.stop, key.step
             return ExtendTemplate(connections=[self, start, stop, step], model="slice")
-        elif isinstance(key, int | tuple):
+        elif isinstance(key, int | tuple | None):
             return ExtendTemplate(connections=[self, key], model="get_item")
         else:
             raise TypeError(f"Unsupported key type: {type(key)}")
@@ -1070,7 +1070,7 @@ class TemplateBase:
     def transpose(self, axes: tuple[int, ...] | TemplateBase | None = None):
         return ExtendTemplate(connections=[self, axes], model="transpose")
 
-    def split(self, split_size: int, axis: int):
+    def split(self, split_size: int | TemplateBase | None, axis: int):
         return ExtendTemplate(connections=[self, split_size, axis], model="split")
 
     def item(self):
@@ -1403,6 +1403,9 @@ class Uniadic:
 
     def __eq__(self, other: Uniadic) -> bool:  # type: ignore
         return id(self.metadata) == id(other.metadata)
+
+    def __repr__(self):
+        return f"Uniadic({self.value})"
 
     def set_value(self, value: int | set[int] | None):  # Do we need set_value
         prev_value = self.metadata.possible_values

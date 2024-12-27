@@ -3519,7 +3519,7 @@ def split_constraints(output: Tensor, input: Tensor, split_size: Scalar, axis: S
                     )
                     status = True
 
-            elif len(input_shape.prefix) >= abs(axis_val):
+            elif len(input_shape.suffix) >= abs(axis_val):
                 axis_val = len(input_shape.suffix) + axis_val
                 uni_val = input_shape.suffix[axis_val].value
                 if uni_val is not None:

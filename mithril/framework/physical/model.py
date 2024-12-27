@@ -525,7 +525,8 @@ class PhysicalModel(GenericDataType[DataType]):
                     node.connections[PrimitiveModel.output_key].key
                 )
 
-        pruned_keys = self._flat_graph.prune_duplicate_nodes(self.data, constant_keys)
+        available_data = {key: value for key, value in self.data.items() if key not in self.data_store.unused_keys}
+        pruned_keys = self._flat_graph.prune_duplicate_nodes(available_data, constant_keys)
 
         updates = Updates()
 
