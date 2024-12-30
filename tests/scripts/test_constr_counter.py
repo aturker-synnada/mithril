@@ -63,8 +63,8 @@ def dummy_constraint(output: Tensor | Scalar, input: Tensor | Scalar):
         uniadics = [
             Uniadic(val + add_val) if val is not None else Uniadic() for val in values
         ]
-        updates |= var_repr._update_uniadics(var_repr.prefix, uniadics)
-        updates |= var_repr._update_uniadics(var_repr.reverse, uniadics)
+        updates |= var_repr.update_uniadics(var_repr.prefix, uniadics)
+        updates |= var_repr.update_uniadics(var_repr.reverse, uniadics)
         updates |= var_repr.remove_variadic(uniadics)
         status = None not in values
     else:
@@ -949,10 +949,10 @@ def test_shape_constraint_counter_14():
 def test_shape_constraint_counter_15():
     model = Model()
 
-    slice_1 = Slice(start=TBD, stop=TBD, step=TBD)
-    slice_2 = Slice(start=TBD, stop=TBD, step=TBD)
-    slice_3 = Slice(start=TBD, stop=TBD, step=TBD)
-    slice_4 = Slice(start=TBD, stop=TBD, step=TBD)
+    slice_1 = Slice()
+    slice_2 = Slice()
+    slice_3 = Slice()
+    slice_4 = Slice()
 
     item_model_1 = TensorItem()
     item_model_2 = TensorItem()

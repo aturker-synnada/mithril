@@ -160,7 +160,7 @@ def general_tensor_type_constraint(*args: Tensor):
     union_types: set[tuple[Tensor, UnionType]] = set()
     # Set all different types and also Union types in input args.
     for arg in inputs:
-        typ = arg._type
+        typ = arg.type
         arg_types.add(typ)
         if isinstance(typ, UnionType):
             union_types.add((arg, typ))
@@ -173,29 +173,29 @@ def general_tensor_type_constraint(*args: Tensor):
         raise TypeError(f"Possible Unsupported type(s) ({unsupported}) detected!")
 
     # Try reverse type inference first.
-    if not isinstance(output._type, UnionType):
+    if not isinstance(output.type, UnionType):
         # Means output has a definite type (int, float or bool).
-        out_exists = output._type in arg_types
+        out_exists = output.type in arg_types
         related_unions = {
-            pair for pair in union_types if output._type in pair[1].__args__
+            pair for pair in union_types if output.type in pair[1].__args__
         }
         if not (out_exists or related_unions):
             # At least one of arg_types or UnionTypes must contain
             # output type.
             raise TypeError(
-                f"None of arguments consist of type {output._type} which is the "
+                f"None of arguments consist of type {output.type} which is the "
                 "exact output type!"
             )
         elif not out_exists and len(related_unions) == 1:
             # If only one of them contains output type, enforce this union
             # type to be same as output type.
             arg = related_unions.pop()[0]
-            updates |= arg.set_type(output._type)
+            updates |= arg.set_type(output.type)
             status = True
         # Update Union type arguments.
         for pair in related_unions:
             arg, arg_type = pair
-            new_type = _reduce_union_type(output._type, arg_type)
+            new_type = _reduce_union_type(output.type, arg_type)
             if new_type is not None:
                 uni_type = create_union_type(*new_type)
                 assert not isinstance(uni_type, GenericAlias)
@@ -204,10 +204,10 @@ def general_tensor_type_constraint(*args: Tensor):
             # If any one of inputs became same type as output, set
             # status True.
             for pair in related_unions:
-                if pair[0]._type == output._type:
+                if pair[0].type == output.type:
                     status = True
                     break
-    elif output._type == int | bool:
+    elif output.type == int | bool:
         if float in arg_types:
             raise TypeError(
                 "One of arguments value is float which is not possible when output "
@@ -217,7 +217,7 @@ def general_tensor_type_constraint(*args: Tensor):
             # We can eliminate any float possibility from Union type args.
             for pair in union_types:
                 arg, arg_type = pair
-                new_type = _reduce_union_type(output._type, arg_type)
+                new_type = _reduce_union_type(output.type, arg_type)
                 if new_type is not None:
                     uni_type = create_union_type(*new_type)
                     assert not isinstance(uni_type, GenericAlias)
@@ -245,12 +245,12 @@ def general_tensor_type_constraint(*args: Tensor):
             if not union_types:
                 out_type = bool
             elif all_possible_types.issuperset({float, int}):
-                if output._type != float | int | bool:
+                if output.type != float | int | bool:
                     out_type = float | int | bool
             elif all_possible_types.issuperset({float}):
-                if output._type != float | bool:
+                if output.type != float | bool:
                     out_type = float | bool
-            elif all_possible_types.issuperset({int}) and output._type != int | bool:
+            elif all_possible_types.issuperset({int}) and output.type != int | bool:
                 out_type = int | bool
         elif int | float in arg_types:
             out_type = int | float
@@ -274,22 +274,22 @@ def floor_divide_type_constraint(
     # constrain its type to float | int.
     updates |= output.set_type(int | float)
     # Try reverse type inference first.
-    if output._type is int:
+    if output.type is int:
         # Only possible when numerator and denominator are integers or booleans.
         updates |= numerator.set_type(int | bool)
         updates |= denominator.set_type(int | bool)
         status = True
-    elif output._type is float:
+    elif output.type is float:
         # At least one of inputs is float.
         if (
-            isinstance(numerator._type, UnionType)
-            and float not in numerator._type.__args__
+            isinstance(numerator.type, UnionType)
+            and float not in numerator.type.__args__
         ):
             updates |= denominator.set_type(float)
             status = True
         elif (
-            isinstance(denominator._type, UnionType)
-            and float not in denominator._type.__args__
+            isinstance(denominator.type, UnionType)
+            and float not in denominator.type.__args__
         ):
             updates |= numerator.set_type(float)
             status = True
@@ -300,8 +300,8 @@ def scalar_slice_type_constraint(
     output: Scalar, input: Scalar, start: Scalar, stop: Scalar, step: Scalar
 ):
     updates = Updates()
-    output_type = output._type
-    input_type = input._type
+    output_type = output.type
+    input_type = input.type
 
     assert (
         isinstance(start.value, ToBeDetermined)
@@ -379,12 +379,12 @@ def scalar_slice_type_constraint(
         else:
             raise TypeError("Inferred types does not match in slice constraints!")
 
-    status = not is_union(output._type)
+    status = not is_union(output.type)
     return status, updates
 
 
 def scalar_item_type_constraint_forward_helper(
-    input_type: GenericAlias | UnionType | type, index_val: int | ToBeDetermined
+    input_type: GenericAlias | UnionType | type, index_val: int | slice | ToBeDetermined
 ) -> type | UnionType | GenericAlias:
     # forward inference of scalar item type constraint:
     # Examples:
@@ -393,34 +393,49 @@ def scalar_item_type_constraint_forward_helper(
 
     new_type = input_type
     if isinstance(input_type, GenericAlias):
-        if input_type.__origin__ is tuple:
+        origin = get_origin(input_type)
+        if origin is tuple:
             if ... in input_type.__args__:
+                variadic_required = True
                 # if second value is ellipsis, directly take first value
                 # (tuple[int, ...] -> int)
                 new_type = input_type.__args__[0]
             else:
                 # case when type of tuple is exact (ex: tuple[int, float])
                 if not isinstance(index_val, ToBeDetermined):
+                    variadic_required = False
                     # if index val is specified, directly take the corresponding item
                     # of type
-                    new_type = input_type.__args__[index_val]
+                    if isinstance(index_val, int):
+                        new_type = input_type.__args__[index_val]
+                    else:
+                        new_type = tuple[*input_type.__args__[index_val]]  # type: ignore
                 else:
+                    variadic_required = True
                     # if not specified this means it can be all of them,
                     # take union of all types inside tuple
                     new_type = create_union_type(*input_type.__args__)
 
-        elif input_type.__origin__ is list:
-            # if list, directly take first argument (list[int | float] -> int | float)
-            new_type = input_type.__args__[0]
+            if variadic_required and isinstance(index_val, slice):
+                new_type = tuple[new_type, ...]  # type: ignore
+
+        elif origin is list:
+            if isinstance(index_val, slice):
+                new_type = input_type
+            else:
+                new_type = input_type.__args__[0]
     elif input_type is list or input_type is tuple:
-        new_type = input_type | int | float | list
+        if isinstance(index_val, slice):
+            new_type = input_type
+        else:
+            new_type = input_type | int | float | list
 
     return new_type
 
 
 def check_index_type_compatibility(
     _type: type,
-    index: int | ToBeDetermined,
+    index: int | ToBeDetermined | slice,
     is_variadic: bool,
     raise_error: bool = False,
 ) -> bool:
@@ -431,7 +446,7 @@ def check_index_type_compatibility(
         and not is_variadic
     ):
         args_len = len(_type.__args__)
-        if not (-args_len <= index <= args_len - 1):
+        if isinstance(index, int) and not (-args_len <= index <= args_len - 1):
             if raise_error:
                 raise TypeError(
                     f"Index value {index} is out of range for type {_type}!"
@@ -443,7 +458,7 @@ def check_index_type_compatibility(
 def scalar_item_reduce_input_type(
     output_type: type | UnionType | GenericAlias,
     input_type: type | UnionType | GenericAlias,
-    index: int | ToBeDetermined,
+    index: int | slice | ToBeDetermined,
 ):
     possible_types = []
     out_origin: type[list] | type[tuple] | type[UnionType] | None = get_origin(
@@ -490,31 +505,44 @@ def scalar_item_reduce_input_type(
             input_origin, index, is_variadic, raise_error=True
         ):
             if index == ... or input_origin is list:
-                for arg in input_type.__args__:
-                    if find_intersection_type(output_type, arg):
-                        return input_type
+                if isinstance(index, int):
+                    for arg in input_type.__args__:
+                        if find_intersection_type(output_type, arg):
+                            return input_type
+                else:
+                    return input_type
+
             elif input_origin is tuple:
-                possible_types = [
-                    arg if idx != index else find_intersection_type(arg, output_type)
-                    for idx, arg in enumerate(input_type.__args__)
-                ]
-                return (
-                    input_origin[*possible_types, ...]  # type: ignore
-                    if is_variadic
-                    else input_origin[*possible_types]  # type: ignore
-                )
+                if isinstance(index, int):
+                    possible_types = [
+                        arg
+                        if idx != index
+                        else find_intersection_type(arg, output_type)
+                        for idx, arg in enumerate(input_type.__args__)
+                    ]
+                    return (
+                        input_origin[*possible_types, ...]  # type: ignore
+                        if is_variadic
+                        else input_origin[*possible_types]  # type: ignore
+                    )
+                else:
+                    return input_type
     else:
         return input_type
 
 
 def scalar_item_type_constraint(output: Scalar, input: Scalar, index: Scalar):
     updates = Updates()
-    assert not isinstance(input._type, NestedListType)
-    assert not isinstance(output._type, NestedListType)
-    input_type = input._type
-    output_type = output._type
+    assert not isinstance(input.type, NestedListType)
+    assert not isinstance(output.type, NestedListType)
+    input_type = input.type
+    output_type = output.type
     index_value = index.value
-    assert isinstance(index_value, ToBeDetermined) or type(index_value) is int
+    assert (
+        isinstance(index_value, ToBeDetermined)
+        or type(index_value) is int
+        or type(index_value) is slice
+    )
 
     if not (
         isinstance(input_type, UnionType)
@@ -536,7 +564,7 @@ def scalar_item_type_constraint(output: Scalar, input: Scalar, index: Scalar):
 
     # extract all possibilites and put it in to a list
     # TODO: This part should take NestedListType into account.
-    args = input._type.__args__ if isinstance(input._type, UnionType) else [input._type]
+    args = input.type.__args__ if isinstance(input.type, UnionType) else [input.type]
 
     # Do the forward inference in all types in args, then make Union
     types = [
@@ -546,7 +574,7 @@ def scalar_item_type_constraint(output: Scalar, input: Scalar, index: Scalar):
 
     updates |= output.set_type(inferred_out_type)
 
-    status = not is_union(output._type)
+    status = not is_union(output.type)
     return status, updates
 
 
@@ -585,36 +613,36 @@ def slice_constraints(output: Scalar, start: Scalar, stop: Scalar, step: Scalar)
 
 
 def tensor_to_list_type_constraint(output: Scalar, input: Tensor):
-    status = not is_union(output._type)
+    status = not is_union(output.type)
     updates = Updates()
     assert input._temp_shape is not None
     in_shape: ShapeRepr = input._temp_shape
     assert (
-        output._type is list
-        or output._type is float
-        or output._type is int
-        or output._type is bool
-        or isinstance(output._type, NestedListType | UnionType)
-        or (isinstance(output._type, GenericAlias) and output._type.__origin__ is list)
+        output.type is list
+        or output.type is float
+        or output.type is int
+        or output.type is bool
+        or isinstance(output.type, NestedListType | UnionType)
+        or (isinstance(output.type, GenericAlias) and output.type.__origin__ is list)
     )
 
     # If input type is UnionType, try to constrain it using output type
-    if get_origin(input._type) == UnionType and (
-        out_types := find_list_base_type(output._type)  # type: ignore  # (MyPy bug)
+    if get_origin(input.type) == UnionType and (
+        out_types := find_list_base_type(output.type)  # type: ignore  # (MyPy bug)
     ):
         possible_input_types = find_intersection_type(
-            input._type, create_union_type(*out_types)
+            input.type, create_union_type(*out_types)
         )
         if not possible_input_types:
             raise TypeError(
-                f"Input type {input._type} is not compatible with output type "
-                f"{output._type}!"
+                f"Input type {input.type} is not compatible with output type "
+                f"{output.type}!"
             )
         assert not isinstance(possible_input_types, NestedListType)
         updates |= input.set_type(possible_input_types)
 
     # Create the base same as input type
-    base = input._type
+    base = input.type
     if in_shape.root is None:
         for _ in range(len(in_shape.prefix + in_shape.suffix)):
             # recursively cover list with base equal to number of all determined
@@ -627,9 +655,7 @@ def tensor_to_list_type_constraint(output: Scalar, input: Tensor):
     updates |= output.set_type(base)
 
     if in_shape.root is not None:
-        status = not (
-            is_union(output._type) or isinstance(output._type, NestedListType)
-        )
+        status = not (is_union(output.type) or isinstance(output.type, NestedListType))
     else:
         status = True
 
@@ -638,7 +664,7 @@ def tensor_to_list_type_constraint(output: Scalar, input: Tensor):
 
 def reduce_type_constraint(output: Tensor, input: Tensor):
     updates = Updates()
-    input_type = input._type
+    input_type = input.type
 
     possible_output_types: list[type[int] | type[float] | type[bool]] = []
 
@@ -656,14 +682,14 @@ def reduce_type_constraint(output: Tensor, input: Tensor):
     updates |= output.set_type(union_output_types)
 
     ### Reverse Inference ###
-    if output._type is float:
+    if output.type is float:
         # if output type is float, it is guaranteed that input will be float
         updates |= input.set_type(float)
-    elif output._type is int:
+    elif output.type is int:
         # if output type is int, input should either be int or bool
         updates |= input.set_type(bool | int)
 
-    status = not isinstance(output._type, UnionType)
+    status = not isinstance(output.type, UnionType)
 
     return status, updates
 
@@ -1412,8 +1438,8 @@ def reduce_constraints(
             axis_val = (axis_val,)
         elif axis_val is None:
             if keepdim_val is False:
-                updates |= input_shape._update_uniadics(input_shape.prefix, [])
-                updates |= output_shape._update_uniadics(output_shape.reverse, [])
+                updates |= input_shape.update_uniadics(input_shape.prefix, [])
+                updates |= output_shape.update_uniadics(output_shape.reverse, [])
                 if output_shape.root is not None:
                     updates |= output_shape.remove_variadic([])
         elif not isinstance(axis_val, tuple):
@@ -1580,10 +1606,10 @@ def reduce_constraints(
                 filtered_var_replacement: list[Uniadic] = list(
                     filter(None, var_replacement)
                 )
-                updates |= output_shape._update_uniadics(
+                updates |= output_shape.update_uniadics(
                     output_shape.prefix, filtered_var_replacement
                 )
-                updates |= output_shape._update_uniadics(
+                updates |= output_shape.update_uniadics(
                     output_shape.reverse, filtered_var_replacement[::-1]
                 )
                 updates |= output_shape.remove_variadic(filtered_var_replacement)
@@ -1635,8 +1661,8 @@ def reduce_constraints(
                         updates |= next(out_iter).match(replacement)
                 else:
                     input_uniadics.append(next(out_iter))
-            updates |= input_shape._update_uniadics(input_shape.prefix, input_uniadics)
-            updates |= input_shape._update_uniadics(
+            updates |= input_shape.update_uniadics(input_shape.prefix, input_uniadics)
+            updates |= input_shape.update_uniadics(
                 input_shape.reverse, input_uniadics[::-1]
             )
             updates |= input_shape.remove_variadic(input_uniadics)
@@ -1845,10 +1871,10 @@ def reverse_constraints(
     if axes_val is None:
         if output_shape.root is None:
             # TODO Maybe we should embed uniadic updates in remove_variadic
-            updates |= input_shape._update_uniadics(
+            updates |= input_shape.update_uniadics(
                 input_shape.prefix, output_shape.reverse
             )
-            updates |= input_shape._update_uniadics(
+            updates |= input_shape.update_uniadics(
                 input_shape.reverse, output_shape.prefix
             )
             if input_shape.root is not None:
@@ -1857,10 +1883,10 @@ def reverse_constraints(
                     raise ValueError("Shape mismatch in Transpose model")
             status = True
         if input_shape.root is None:
-            updates |= output_shape._update_uniadics(
+            updates |= output_shape.update_uniadics(
                 output_shape.prefix, input_shape.reverse
             )
-            updates |= output_shape._update_uniadics(
+            updates |= output_shape.update_uniadics(
                 output_shape.reverse, input_shape.prefix
             )
             if output_shape.root is not None:
@@ -1876,11 +1902,11 @@ def reverse_constraints(
         in_unis = [Uniadic() for _ in range(len(a_val))]
         out_unis = [in_unis[axis] for axis in a_val]
 
-        updates |= input_shape._update_uniadics(input_shape.prefix, in_unis)
-        updates |= input_shape._update_uniadics(input_shape.reverse, in_unis[::-1])
+        updates |= input_shape.update_uniadics(input_shape.prefix, in_unis)
+        updates |= input_shape.update_uniadics(input_shape.reverse, in_unis[::-1])
 
-        updates |= output_shape._update_uniadics(output_shape.prefix, out_unis)
-        updates |= output_shape._update_uniadics(output_shape.reverse, out_unis[::-1])
+        updates |= output_shape.update_uniadics(output_shape.prefix, out_unis)
+        updates |= output_shape.update_uniadics(output_shape.reverse, out_unis[::-1])
 
         if input_shape.root is not None:
             updates |= input_shape.remove_variadic(in_unis)
@@ -2496,10 +2522,10 @@ def arange_constraints(
         elif (min_dims := len(output_shape)) <= 1:
             if val > 0:
                 out_uniadic = [Uniadic()]
-                updates |= output_shape._update_uniadics(
+                updates |= output_shape.update_uniadics(
                     output_shape.prefix, out_uniadic
                 )
-                updates |= output_shape._update_uniadics(
+                updates |= output_shape.update_uniadics(
                     output_shape.reverse, out_uniadic
                 )
                 updates |= output_shape.remove_variadic(out_uniadic)
@@ -2544,8 +2570,8 @@ def randn_constraints(output: Tensor, shape: Scalar) -> ConstrainResultType:
                     f"must have exactly {len(shape_val)} dim(s)."
                 )
             out_uniadics = [Uniadic(dim) for dim in shape_val]
-            updates |= output_shape._update_uniadics(output_shape.prefix, out_uniadics)
-            updates |= output_shape._update_uniadics(
+            updates |= output_shape.update_uniadics(output_shape.prefix, out_uniadics)
+            updates |= output_shape.update_uniadics(
                 output_shape.reverse, out_uniadics[::-1]
             )
             updates |= output_shape.remove_variadic(out_uniadics)
@@ -2592,8 +2618,8 @@ def broadcast_to_constraints(
                     f"must have exactly {len(shape_val)} dim(s)."
                 )
             out_uniadics = [Uniadic(dim) for dim in shape_val]
-            updates |= output_shape._update_uniadics(output_shape.prefix, out_uniadics)
-            updates |= output_shape._update_uniadics(
+            updates |= output_shape.update_uniadics(output_shape.prefix, out_uniadics)
+            updates |= output_shape.update_uniadics(
                 output_shape.reverse, out_uniadics[::-1]
             )
             updates |= output_shape.remove_variadic(out_uniadics)
@@ -2683,8 +2709,8 @@ def reshape_constraints(
             out_uniadics = [
                 Uniadic(val) if val != -1 else Uniadic() for val in shape_val
             ]
-            updates |= output_shape._update_uniadics(output_shape.prefix, out_uniadics)
-            updates |= output_shape._update_uniadics(
+            updates |= output_shape.update_uniadics(output_shape.prefix, out_uniadics)
+            updates |= output_shape.update_uniadics(
                 output_shape.reverse, out_uniadics[::-1]
             )
             updates |= output_shape.remove_variadic(out_uniadics)
@@ -2756,8 +2782,8 @@ def reshape_constraints(
         values: list[int | None] | tuple[int | None, ...] = [
             uni.value for uni in output_shape.prefix
         ]
-        assert isinstance(shape._type, GenericAlias)
-        if shape._type.__origin__ is tuple:
+        assert isinstance(shape.type, GenericAlias)
+        if shape.type.__origin__ is tuple:
             values = tuple(values)
         # TODO: This update assumes no -1 is given in shapes. However,
         # situations may occur where shape is given with -1.
@@ -3150,7 +3176,7 @@ def swap_axes_constraints(
                 updates |= other[axis2_val].match(non_variadic[axis1_val])
 
             else:
-                updates |= other._match(non_variadic)
+                updates |= other.match(non_variadic)
                 other[axis1_val], other[axis2_val] = other[axis2_val], other[axis1_val]
             status = True
 
@@ -3199,9 +3225,9 @@ def to_tensor_constraints(output: Tensor, input: Scalar) -> ConstrainResultType:
             updates |= output.set_type(typ)
             updates.add(output, update_type=UpdateType.TYPE)
         elif isinstance(input_val, float | int):
-            assert isinstance(input._type, type(int) | type(float))
+            assert isinstance(input.type, type(int) | type(float))
             shape = []
-            updates |= output.set_type(input._type)
+            updates |= output.set_type(input.type)
             updates.add(output, update_type=UpdateType.TYPE)
         if output_shape.root is None:
             if len(shape) != len(output_shape.prefix):
@@ -3291,7 +3317,11 @@ def scalar_item_constraints(
         or type(input.value) is list
     )
 
-    assert isinstance(index.value, ToBeDetermined) or type(index.value) is int
+    assert (
+        isinstance(index.value, ToBeDetermined)
+        or type(index.value) is int
+        or type(index.value) is slice
+    )
 
     updates = Updates()
     status = False
@@ -3301,7 +3331,9 @@ def scalar_item_constraints(
     ):
         updates |= output.set_value(input.value[index.value])
         status = True
-    elif not isinstance(input.value, ToBeDetermined) and isinstance(output.value, int):
+    elif not isinstance(input.value, ToBeDetermined) and isinstance(
+        output.value, int | float | bool
+    ):
         # Try to infer index value from input-output values. If
         # output value appears only once in input sequence, write its
         # index as the value of index argument.
@@ -3429,7 +3461,6 @@ def tensor_item_constraints(
                     input_shape.root,
                     (output_suffix + input_shape.reverse[idx_suf:])[::-1],
                 )
-
     return status, updated_symbols
 
 
@@ -3688,15 +3719,15 @@ def cross_entropy_constraint(
 
     if categorical_value is not TBD:
         if not categorical_value:
-            updates |= target_shape._match(input_shape)
+            updates |= target_shape.match(input_shape)
         else:
             N = Uniadic()
             C = Uniadic()
             var = Variadic()
             in_repr = ShapeRepr([N, C], var)
             target_repr = ShapeRepr([N], var)
-            updates = input_shape._match(in_repr)
-            updates = target_shape._match(target_repr)
+            updates = input_shape.match(in_repr)
+            updates = target_shape.match(target_repr)
 
         status = True
     return status, updates

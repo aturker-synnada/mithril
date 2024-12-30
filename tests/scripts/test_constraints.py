@@ -240,12 +240,12 @@ def assert_type_results(
     assert updated_constraints == updated_symbols.constraints[UpdateType.TYPE]
     # Then check final types with the expected ref_results.
     for key, value in data.items():
-        if isinstance(value._type, NestedListType):
+        if isinstance(value.type, NestedListType):
             result = ref_results[key]
             assert isinstance(result, NestedListType)
-            assert value._type.base_type == result.base_type
+            assert value.type.base_type == result.base_type
         else:
-            assert value._type == ref_results[key]
+            assert value.type == ref_results[key]
 
 
 def assert_value_results(
@@ -363,7 +363,7 @@ def _assert_constraint_results(
     # If initial types are given, set them.
     if initial_types is not None:
         for key, type in initial_types.items():
-            data[key]._type = type
+            data[key].type = type
 
     # If any initial values are given, set them.
     for key, value in initial_values.items():
@@ -6266,6 +6266,29 @@ def test_tensor_item_constraints_24():
             value=(None, ..., None, 1, slice(2, 5, None), slice(2, 4, None))
         )
     }
+    assert_constraint_results(
+        shapes,
+        {},
+        final_shapes,
+        {},
+        tensor_item_constraints,
+        True,
+        {"output"},
+        scalar_info,
+    )
+
+
+def test_tensor_item_constraints_25():
+    shapes: dict[str, list[int | str | tuple]] = {
+        "input": [10, 1, 2],
+        "output": ["u1", 1, 2],
+    }
+    final_shapes = {
+        "input": [10, 1, 2],
+        "output": [5, 1, 2],
+        "index": [],
+    }
+    scalar_info = {"index": Scalar(value=(slice(5, None, None)))}
     assert_constraint_results(
         shapes,
         {},
