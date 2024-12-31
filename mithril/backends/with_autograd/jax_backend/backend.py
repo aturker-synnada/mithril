@@ -21,7 +21,7 @@ import jax
 
 from ....core import Dtype
 from ...backend import PadWidthType, ParallelBackend
-from ...utils import process_shape
+from ...utils import DtypeBits, process_shape
 from . import ops, utils
 from .parallel import JaxParallel
 
@@ -50,16 +50,17 @@ class JaxBackend(ParallelBackend[jax.numpy.ndarray]):
     def __init__(
         self,
         device: str = "cpu",
-        precision: int = 32,
+        dtype: Dtype = Dtype.float32,
         pre_allocate: bool = False,
         device_mesh: tuple[int, ...] | None = None,
     ) -> None:
         self._device = device
         utils.get_device(device)  # Check device is available
-        self._precision = precision
+        self._dtype = dtype
+        self._precision = DtypeBits[dtype.name].value
         self._parallel_manager: JaxParallel | None = None
 
-        super().__init__(device_mesh=device_mesh)
+        super().__init__(dtype=dtype, device_mesh=device_mesh)
 
         if device_mesh is not None:
             self._create_parallel(device_mesh=device_mesh)
@@ -174,9 +175,7 @@ class JaxBackend(ParallelBackend[jax.numpy.ndarray]):
         _dtype = utils.determine_dtype(input, dtype, self.precision)
 
         with jax.default_device(self.device):
-            array = jax.numpy.array(
-                input, dtype=utils.dtype_map[_dtype], device=self.device
-            )
+            array = jax.numpy.array(input, dtype=utils.dtype_map[_dtype])
 
         if self._parallel_manager is not None:
             array = self._parallel_manager.parallelize(array, device_mesh)
