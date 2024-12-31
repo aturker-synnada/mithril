@@ -1,8 +1,9 @@
 import os
 import mithril as ml
 from util import configs, load_decoder, load_clip, load_t5, load_flow_model
-from sampling import get_noise, prepare, denoise, get_schedule
+from sampling import get_noise, prepare, denoise, get_schedule, unpack, rearrange
 from dataclasses import dataclass
+from PIL import ExifTags, Image
 import gc
 
 
@@ -21,8 +22,8 @@ def run(
     model_name: str = "flux-schnell",
     width: int = 512,
     height: int = 512,
-    prompt: str = "A photo of a cat",
-    device: str = "cpu",
+    prompt: str = "A photo q of a cat",
+    device: str = "cuda",
     output_dir: str = "temp",
     num_steps: int | None = None,
     guidance: float = 3.5,
@@ -59,10 +60,11 @@ def run(
 
     backend = ml.TorchBackend(device=device, precision=16)
     
-    t5 = load_t5(device=device, max_length=256 if model_name == "flux-schnell" else 512)
-    clip = load_clip(device=device)
+    t5 = load_t5(device=device, max_length=256 if model_name == "flux-schnell" else 512).to("cuda")
+    clip = load_clip(device=device).to("cuda")
     flow_model, flow_params = load_flow_model(model_name, backend=backend)
-    #decoder_model, decoder_params = load_decoder(model_name, backend=backend)
+    decoder, decoder_params = load_decoder("flux-schnell", backend=backend)
+
 
 
     opts = SamplingOptions(
@@ -76,18 +78,20 @@ def run(
 
     noise = get_noise(1, opts.height, opts.width, device, seed)
     inp = prepare(t5, clip, noise, prompt=opts.prompt)
+    t5 = t5.to("cpu")
+    clip = clip.to("cpu")
 
     timesteps = get_schedule(opts.num_steps, inp["img"].shape[1], shift=(model_name != "flux-schnell"))
     del t5
     del clip
-    denoise(flow_model, flow_params, **inp, timesteps=timesteps)
 
-
-
-
-
-
-
+    x = denoise(flow_model, flow_params, **inp, timesteps=timesteps)
+    x = unpack(x, opts.height, opts.width)
+    x = decoder.evaluate(decoder_params,{"input":x.float()})["output"]
+    x = x.clamp(-1, 1)
+    x = rearrange(x[0], "c h w -> h w c")
+    img = Image.fromarray((127.5 * (x + 1.0)).cpu().byte().numpy())
+    
 
 
 if __name__ == '__main__':

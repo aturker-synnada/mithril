@@ -132,6 +132,7 @@ def encoder(
     num_res_blocks: int,
     z_channels: int,
     name: str | None = None,
+    **kwargs
 ):
     encoder = Model(name=name)
     encoder += Convolution2D(3, ch, stride=1, padding=1, name="conv_in")("input")
@@ -174,7 +175,7 @@ def encoder(
     return encoder
 
 
-def decoder(ch: int, out_ch: int, ch_mult: list[int], num_res_blocks: int):
+def decoder(ch: int, out_ch: int, ch_mult: list[int], num_res_blocks: int, **kwargs):
     decoder = Model(enforce_jit=False)
     block_in = ch * ch_mult[-1]
     decoder += Convolution2D(3, block_in, padding=1, name="conv_in")("input")

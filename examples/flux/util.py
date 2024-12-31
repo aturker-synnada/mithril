@@ -149,7 +149,7 @@ def load_flow_model(name: str, backend: ml.Backend, hf_download: bool = True):
     # y_shape = [1, 768]
 
     flux_lm = flux(configs[name].params)
-    flux_pm = ml.compile(flux_lm, backend, jit=False, data_keys={"img", "txt", "img_ids", "txt_ids", "timesteps", "y"}, use_short_namings=False)
+    flux_pm = ml.compile(flux_lm, backend, jit=False, data_keys={"img", "txt", "img_ids", "txt_ids", "timesteps", "y"}, use_short_namings=False, file_path="flux.py", jit=False)
     sd = load_sft(ckpt_path, device=str(backend.device))
     params =  convert_to_ml_weights(flux_pm.shapes, sd)
 

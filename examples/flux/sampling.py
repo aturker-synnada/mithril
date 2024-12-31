@@ -20,7 +20,7 @@ def get_noise(
         2 * math.ceil(height / 16),
         2 * math.ceil(width / 16),
         device=device,
-        dtype=torch.float16,
+        dtype=torch.bfloat16,
         generator=torch.Generator(device=device).manual_seed(seed),
     )
 
@@ -40,6 +40,7 @@ def prepare(t5: HFEmbedder, clip: HFEmbedder, img: torch.Tensor, prompt: str | l
         img_ids[..., 1] = img_ids[..., 1] + torch.arange(h // 2)[:, None]
         img_ids[..., 2] = img_ids[..., 2] + torch.arange(w // 2)[None, :]
         img_ids = repeat(img_ids, "h w c -> b (h w) c", b=bs)
+        img_ids = img_ids.type(torch.bfloat16)
 
         if isinstance(prompt, str):
             prompt = [prompt]
@@ -47,6 +48,8 @@ def prepare(t5: HFEmbedder, clip: HFEmbedder, img: torch.Tensor, prompt: str | l
         if txt.shape[0] == 1 and bs > 1:
             txt = repeat(txt, "1 ... -> bs ...", bs=bs)
         txt_ids = torch.zeros(bs, txt.shape[1], 3)
+
+        txt_ids = txt_ids.type(torch.bfloat16)
 
         vec = clip(prompt)
         if vec.shape[0] == 1 and bs > 1:
@@ -135,3 +138,15 @@ def denoise(
         img = img + (t_prev - t_curr) * pred["output"]
 
     return img
+
+
+
+def unpack(x: torch.Tensor, height: int, width: int) -> torch.Tensor:
+    return rearrange(
+        x,
+        "b (h w) (c ph pw) -> b c (h ph) (w pw)",
+        h=math.ceil(height / 16),
+        w=math.ceil(width / 16),
+        ph=2,
+        pw=2,
+    )

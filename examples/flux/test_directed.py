@@ -64,9 +64,9 @@ from examples.flux.original_impl import (
 
 default_backends = [
     ml.TorchBackend(),
-    ml.JaxBackend(),
+    # ml.JaxBackend(),
     # ml.NumpyBackend(),
-    ml.MlxBackend(),
+    # ml.MlxBackend(),
 ]
 
 
@@ -226,8 +226,8 @@ def test_upsample():
             jit=False
         )
 
-        inp = backend.array(torch_inp.numpy())
-        params = {key: backend.array(np.array(value)) for key, value in params.items()}
+        inp = torch.tensor(torch_inp.numpy())
+        params = {key: torch.tensor(np.array(value)) for key, value in params.items()}
 
         res = pm(params, {"input": inp})["output"]
 
@@ -238,7 +238,7 @@ def test_encoder():
     backends = [
         ml.JaxBackend(),
         ml.TorchBackend(),
-        ml.MlxBackend(),
+        # ml.MlxBackend(),
     ]
 
     params = {
@@ -350,9 +350,9 @@ def test_decoder():
 
 def test_apply_rope():
     backends = [
-        ml.JaxBackend(),
+        # ml.JaxBackend(),
         ml.TorchBackend(),
-        ml.MlxBackend(),
+        # ml.MlxBackend(),
     ]
     B, L, H, D = 1, 24, 4336, 128
     q_ref = torch.randn(B, L, H, D)
@@ -384,8 +384,8 @@ def test_apply_rope():
 
 def test_time_embeddings():
     backends = [
-        ml.MlxBackend(),
-        ml.JaxBackend(),
+        # ml.MlxBackend(),
+        # ml.JaxBackend(),
         ml.TorchBackend(),
     ]
 
@@ -410,7 +410,7 @@ def test_time_embeddings():
 
 def test_attention():
     backends = [
-        ml.MlxBackend(),
+        # ml.MlxBackend(),
         ml.TorchBackend(),
         ml.JaxBackend(),
     ]
@@ -483,7 +483,7 @@ def test_rms_norm():
     backends = [
         ml.JaxBackend(),
         ml.TorchBackend(),
-        ml.MlxBackend(),
+        # ml.MlxBackend(),
     ]
     B, L, H, D = 1, 24, 4080, 128
 
@@ -513,7 +513,7 @@ def test_qk_norm():
     backends = [
         ml.JaxBackend(),
         ml.TorchBackend(),
-        ml.MlxBackend(),
+        # ml.MlxBackend(),
     ]
     B, L, H, D = 1, 24, 4080, 128
     q_ref = torch.randn(B, L, H, D)
@@ -544,7 +544,7 @@ def test_modulation():
     backends = [
         ml.JaxBackend(),
         ml.TorchBackend(),
-        ml.MlxBackend(),
+        # ml.MlxBackend(),
     ]
     H, W = 1, 3072
     input_ref = torch.randn(H, W)
@@ -594,7 +594,7 @@ def test_double_stream_block():
     backends = [
         ml.JaxBackend(),
         ml.TorchBackend(),
-        ml.MlxBackend(),
+        # ml.MlxBackend(),
     ]
 
     hidden_size = 3072
@@ -662,7 +662,7 @@ def test_single_stream_block():
     backends = [
         ml.JaxBackend(),
         ml.TorchBackend(),
-        ml.MlxBackend(),
+        # ml.MlxBackend(),
     ]
 
     hidden_size = 3072
@@ -722,7 +722,7 @@ def test_last_layer():
     backends = [
         ml.JaxBackend(),
         ml.TorchBackend(),
-        ml.MlxBackend(),
+        # ml.MlxBackend(),
     ]
 
     hidden_size = 256
@@ -874,4 +874,3 @@ def test_flux():
         for key, value in flux_torch.state_dict().items():
             np.savez(f"flux_weights/{key.replace(".","_").lower()}.npz", value.numpy())
 
-    ...

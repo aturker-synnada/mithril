@@ -14,7 +14,7 @@
 
 from copy import deepcopy
 import math
-
+import mithril as ml
 from mithril import IOKey
 from mithril.models import *
 from mithril.models import (
@@ -35,6 +35,7 @@ from mithril.models import (
     Split,
     Transpose,
     ZerosLike,
+    Cast
 )
 
 def rms_norm(dim: int) -> Model:
@@ -58,8 +59,8 @@ def apply_rope() -> Model:
     xk = IOKey("xk")
     freqs_cis = IOKey("freqs_cis")
 
-    xq_shape = xq.shape()
-    xk_shape = xk.shape()
+    xq_shape = xq.shape
+    xk_shape = xk.shape
     B, L, H = xq_shape[0], xq_shape[1], xq_shape[2]
     block += Reshape()(xq, shape=(B, L, H, -1, 1, 2), output="xq_")
     B, L, H = xk_shape[0], xk_shape[1], xk_shape[2]
@@ -90,7 +91,7 @@ def attention() -> Model:
     )
 
     # We can get named connection as model.'connection_name'
-    context_shape = block.context.shape()  # type: ignore[attr-defined]
+    context_shape = block.context.shape  # type: ignore[attr-defined]
     block += Transpose(axes=(0, 2, 1, 3))(block.context)  # type: ignore[attr-defined]
     # NOTE: Reshape input is automatically connected to Transpose output
     block += Reshape()(
@@ -125,7 +126,7 @@ def rope(dim: int, theta: int) -> Model:
     omega = 1.0 / (theta ** (block.arange / dim))  # type: ignore
     out = input[..., None] * omega
 
-    out_shape = out.shape()
+    out_shape = out.shape
     B, N, D = out_shape[0], out_shape[1], out_shape[2]
 
     block += Cosine()(
@@ -152,14 +153,18 @@ def timestep_embedding(dim: int, max_period: int = 10_000, time_factor: float = 
     block = Model()
 
     input = IOKey("input")
-
-    half = dim // 2
+    
     input = input * time_factor
+
+    block += Cast(dtype=ml.float32)("input", "input_casted")
+
+    
+    half = dim // 2
 
     block += Arange(start=0.0, stop=half)(output="arange_out")
     freqs = (-math.log(max_period) * block.arange_out / half).exp()
 
-    args = input[:, None] * freqs[None]
+    args = block.input_casted[:, None] * freqs[None]
 
     block += Cosine()(input=args, output="cos")
     block += Sine()(input=args, output="sin")
@@ -169,10 +174,12 @@ def timestep_embedding(dim: int, max_period: int = 10_000, time_factor: float = 
     if dim % 2:
         block += ZerosLike()(block.embedding[:, :1], output="zeros_like_out")
         block += Concat(2, axis=-1)(
-            input1="embedding", input2="zeros_like_out", output=IOKey("output")
+            input1="embedding", input2="zeros_like_out"
         )
+        block += Cast(dtype=ml.)(output=IOKey("output"))
     else:
-        block += Buffer()("embedding", output=IOKey("output"))
+        block += Cast()(input="embedding",output=IOKey("output"))
+        #block += Buffer()("embedding", output=IOKey("output"))
 
     return block
 
@@ -262,7 +269,7 @@ def rearrange(num_heads: int):
     input = IOKey("input")
     input_shaepe = input.shape
     B, L = input_shaepe[0], input_shaepe[1]
-    block += Reshape()(shape=(B, L, 3, num_heads, -1))
+    block += Reshape()(input, shape=(B, L, 3, num_heads, -1))
     block += Transpose(axes=(2, 0, 3, 1, 4))(output=IOKey("output"))
     return block
 
@@ -301,7 +308,7 @@ def double_stream_block(
         output="img_rearrange_out",
     )
 
-    rearrange_out = block.txt_rearrange_out  # type: ignore[attr-defined]
+    rearrange_out = block.img_rearrange_out  # type: ignore[attr-defined]
     img_q, img_k, img_v = (rearrange_out[0], rearrange_out[1], rearrange_out[2])
     block += qk_norm(hidden_size // num_heads, name="img_attn_norm")(
         q_in=img_q, k_in=img_k, q_out="q_out", k_out="k_out"
