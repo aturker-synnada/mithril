@@ -148,7 +148,7 @@ class PrimitiveModel(BaseModel):
                 "input" if "input" in self.input_keys else next(iter(self.input_keys))
             )
             canonical_input_conn = self.conns.get_connection(canonical_input_key)
-            if canonical_input_conn is None:
+            if canonical_input_conn is None or kwargs[canonical_input_key].value != TBD:
                 self._canonical_input = NOT_AVAILABLE
             else:
                 self._canonical_input = canonical_input_conn

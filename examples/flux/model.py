@@ -32,10 +32,10 @@ class FluxParams:
 def flux(params: FluxParams):
     flux = Model()
 
-    img = IOKey("img", shape=[1, 1024, 64])
+    img = IOKey("img", shape=[1, 1536, 64])
     txt = IOKey("txt", shape=[1, 256, 4096])
 
-    img_ids = IOKey("img_ids", shape=[1, 1024, 3])
+    img_ids = IOKey("img_ids", shape=[1, 1536, 3])
     txt_ids = IOKey("txt_ids", shape=[1, 256, 3])
 
     timesteps = IOKey("timesteps", shape=[1])
@@ -75,7 +75,8 @@ def flux(params: FluxParams):
         txt_name = f"txt{i}"
 
 
-    flux += Concat(n=2, axis=1)(input1=img_name, input2=txt_name, output="img_concat")
+
+    flux += Concat(n=2, axis=1)(input1=txt_name, input2=img_name, output="img_concat")
     img_name = "img_concat"
     for i in range(params.depth_single_blocks):
         flux += single_stream_block(
@@ -90,6 +91,7 @@ def flux(params: FluxParams):
             output=f"img_single_{i}",
         )
         img_name = f"img_single_{i}"
+
 
     flux += Buffer()(input=img_name, output=IOKey("img_buffer"))
     img = getattr(flux, img_name)

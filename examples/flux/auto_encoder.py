@@ -77,7 +77,7 @@ def resnet_block(
 def attn_block(n_channels: int, name: str | None = None):
     block = Model(name=name)
     block += GroupNorm(num_groups=32, eps=1e-6, name="norm")(
-        IOKey("input", shape=[8, 512, 32, 32]), "normilized"
+        IOKey("input", shape=[None, 512, None, None]), "normilized"
     )
     block += Convolution2D(1, n_channels, name="q")("normilized", output="query")
     block += Convolution2D(1, n_channels, name="k")("normilized", output="key")
@@ -175,8 +175,8 @@ def encoder(
     return encoder
 
 
-def decoder(ch: int, out_ch: int, ch_mult: list[int], num_res_blocks: int, **kwargs):
-    decoder = Model(enforce_jit=False)
+def decoder(ch: int, out_ch: int, ch_mult: list[int], num_res_blocks: int, name: str | None = None, **kwargs):
+    decoder = Model(enforce_jit=False, name=name)
     block_in = ch * ch_mult[-1]
     decoder += Convolution2D(3, block_in, padding=1, name="conv_in")("input")
 
@@ -273,9 +273,6 @@ def decode(ae_params: AutoEncoderParams):
         ae_params.out_ch,
         ae_params.ch_mult,
         ae_params.num_res_blocks,
-        ae_params.in_channels,
-        ae_params.resolution,
-        ae_params.z_channels,
         name="decoder"
     )(input = input, output="output")
 

@@ -38,20 +38,6 @@ from mithril.models import (
     Cast
 )
 
-def rms_norm(dim: int) -> Model:
-    # TODO: check original implementation they use astype and cast to float32
-    input = IOKey("input")
-    scale = IOKey("scale", shape=[dim])  # TODO: scale must be initialized with ones.
-    rrms = 1 / ((input**2).mean(axis=-1, keepdim=True) + 1e-6).sqrt()
-    # NOTE: Temporarily, we have to use Buffer to attach the functional connections
-    # to the model. This is a workaround for the current limitation of the API.
-    block = Model()
-    block += Buffer()(rrms, output=IOKey("rrms"))
-    block += Buffer()(input * rrms * scale, output=IOKey("output"))
-
-    return block
-
-
 def apply_rope() -> Model:
     block = Model()
     # We define the input connections
@@ -75,8 +61,10 @@ def apply_rope() -> Model:
     )
 
     # We are explicitly defining the output connections with IOKey
-    block += Reshape()(xq_out, shape=xq_shape, output=IOKey("xq_out"))
-    block += Reshape()(xk_out, shape=xk_shape, output=IOKey("xk_out"))
+    block += Reshape()(xq_out, shape=xq_shape, output="xq_out_raw")
+    block += Reshape()(xk_out, shape=xk_shape, output="xk_out_raw")
+    block += Cast(dtype=ml.bfloat16)(input="xq_out_raw", output=IOKey("xq_out"))
+    block += Cast(dtype=ml.bfloat16)(input="xk_out_raw", output=IOKey("xk_out"))
     return block
 
 
@@ -100,52 +88,6 @@ def attention() -> Model:
     return block
 
 
-def embed_nd(theta: int, axes_dim: list[int]) -> Model:
-    block = Model()
-    input = IOKey("input")
-
-    for i in range(len(axes_dim)):
-        rope_B = rope(axes_dim[i], theta)
-        block += rope_B(input=input[..., i], output=f"out{i}")
-
-    block += Concat(n=len(axes_dim), axis=-3)(
-        **{f"input{i+1}": f"out{i}" for i in range(len(axes_dim))}, output="concat_out"
-    )
-
-    block += Buffer()(block.concat_out[:, None], output=IOKey("output"))
-
-    return block
-
-
-def rope(dim: int, theta: int) -> Model:
-    assert dim % 2 == 0
-    block = Model()
-    input = IOKey("input")
-    block += Arange(start=0, stop=dim, step=2)(output="arange")
-
-    omega = 1.0 / (theta ** (block.arange / dim))  # type: ignore
-    out = input[..., None] * omega
-
-    out_shape = out.shape
-    B, N, D = out_shape[0], out_shape[1], out_shape[2]
-
-    block += Cosine()(
-        out, output="cos"
-    )
-    block += Sine()(out, output="sin")
-
-    block += Concat(n=4, axis=-1)(
-        input1=block.cos[..., None],  # type: ignore
-        input2=-block.sin[..., None],  # type: ignore
-        input3=block.sin[..., None],  # type: ignore
-        input4=block.cos[..., None],  # type: ignore
-    )
-    rope_shape = (B, N, D, 2, 2)
-    block += Reshape()(shape=rope_shape, output=IOKey("output"))
-    block.set_canonical_input("input")
-    return block
-
-
 def timestep_embedding(dim: int, max_period: int = 10_000, time_factor: float = 1000.0):
     """
     Create sinusoidal timestep embeddings.
@@ -154,17 +96,20 @@ def timestep_embedding(dim: int, max_period: int = 10_000, time_factor: float = 
 
     input = IOKey("input")
     
-    input = input * time_factor
+    input = (input * time_factor)[:, None]
 
-    block += Cast(dtype=ml.float32)("input", "input_casted")
+    block += Cast(dtype=ml.float32)(input, output="input_casted")
+    
 
     
     half = dim // 2
 
     block += Arange(start=0.0, stop=half)(output="arange_out")
-    freqs = (-math.log(max_period) * block.arange_out / half).exp()
+    block += Cast(dtype=ml.float32)("arange_out", output="arange_casted")
+    freqs = (-math.log(max_period) * block.arange_casted / half).exp()
+    block += Buffer()(input=freqs, output=IOKey("out"))
 
-    args = block.input_casted[:, None] * freqs[None]
+    args = block.input_casted * freqs[None]
 
     block += Cosine()(input=args, output="cos")
     block += Sine()(input=args, output="sin")
@@ -176,10 +121,9 @@ def timestep_embedding(dim: int, max_period: int = 10_000, time_factor: float = 
         block += Concat(2, axis=-1)(
             input1="embedding", input2="zeros_like_out"
         )
-        block += Cast(dtype=ml.)(output=IOKey("output"))
+        block += Cast(dtype=ml.bfloat16)(input="zeros_like_out", output=IOKey("output"))
     else:
-        block += Cast()(input="embedding",output=IOKey("output"))
-        #block += Buffer()("embedding", output=IOKey("output"))
+        block += Cast(dtype=ml.bfloat16)(input="embedding",output=IOKey("output"))
 
     return block
 
@@ -195,45 +139,19 @@ def mlp_embedder(hidden_dim: int, name: str | None = None):
 
 def rms_norm(dim: int, name: str | None = None):
     # TODO: check original implementation they use astype and cast to float32
+    block = Model(name=name)
     input = IOKey("input")
     scale = IOKey("scale", shape=[dim])  # TODO: scale must be initialized with ones.
-    rrms = 1 / ((input**2).mean(axis=-1, keepdim=True) + 1e-6).sqrt()
+    block += Cast(dtype=ml.float)(input=input, output="input_casted")
+    rrms = 1 / ((block.input_casted**2).mean(axis=-1, keepdim=True) + 1e-6).sqrt()
+    block += Buffer()(rrms, IOKey("rrms"))
     # NOTE: Temporarily, we have to use Buffer to attach the functional connections
     # to the model. This is a workaround for the current limitation of the API.
-    block = Model(name=name)
-    block += Buffer()(rrms, output=IOKey("rrms"))
-    block += Buffer()(input * rrms * scale, output=IOKey("output"))
+    block += Buffer()(block.input_casted*rrms, output=IOKey("mult"))
+    block += Cast(dtype=ml.bfloat16)(block.input_casted*rrms, output=IOKey("casted"))
+    block += Multiply()(left="casted", right = scale, output=IOKey("output"))
 
     return block
-
-
-def apply_rope() -> Model:
-    block = Model()
-    # We define the input connections
-    xq = IOKey("xq")
-    xk = IOKey("xk")
-    freqs_cis = IOKey("freqs_cis")
-
-    xq_shape = xq.shape
-    xk_shape = xk.shape
-    B, L, H = xq_shape[0], xq_shape[1], xq_shape[2]
-    block += Reshape()(xq, shape=(B, L, H, -1, 1, 2), output="xq_")
-    B, L, H = xk_shape[0], xk_shape[1], xk_shape[2]
-    # B,L,H = *xk.shape is not supported yet.
-    block += Reshape()(xk, shape=(B, L, H, -1, 1, 2), output="xk_")
-    # Do the math
-    xq_out = (
-        freqs_cis[..., 0] * block.xq_[..., 0] + freqs_cis[..., 1] * block.xq_[..., 1]  # type: ignore[attr-defined]
-    )
-    xk_out = (
-        freqs_cis[..., 0] * block.xk_[..., 0] + freqs_cis[..., 1] * block.xk_[..., 1]  # type: ignore[attr-defined]
-    )
-
-    # We are explicitly defining the output connections with IOKey
-    block += Reshape()(xq_out, shape=xq_shape, output=IOKey("xq_out"))
-    block += Reshape()(xk_out, shape=xk_shape, output=IOKey("xk_out"))
-    return block
-
 
 
 def qk_norm(dim: int, name: str | None = None):
@@ -290,16 +208,16 @@ def double_stream_block(
 
     block = Model(name=name)
     block += modulation(hidden_size, double=True, name="img_mod")(
-        input=vec, mod_1="img_mod_1", mod_2="img_mod_2"
+        input=vec, mod_1=IOKey("img_mod_1"), mod_2=IOKey("img_mod_2")
     )
     block += LayerNorm(use_scale=False, use_bias=False, eps=1e-6, name="img_norm1")(
-        input=img, output="img_norm"
+        input=img, output=IOKey("img_norm")
     )
 
     img_modulated = (1 + block.img_mod_1[1]) * block.img_norm + block.img_mod_1[0]  # type: ignore[attr-defined]
 
     block += Linear(hidden_size * 3, use_bias=qkv_bias, name="img_attn_qkv")(
-        img_modulated, output="img_qkv"
+        img_modulated, output=IOKey("img_qkv")
     )
 
     # Rearrange
@@ -338,9 +256,9 @@ def double_stream_block(
     )
     txt_q, txt_k = block.txt_q_out, block.txt_k_out  # type: ignore[attr-defined]
 
-    block += Concat(axis=2, n=2)(input1=txt_q, input2=img_q, output="q_concat")
-    block += Concat(axis=2, n=2)(input1=txt_k, input2=img_k, output="k_concat")
-    block += Concat(axis=2, n=2)(input1=txt_v, input2=img_v, output="v_concat")
+    block += Concat(axis=2, n=2)(input1=txt_q, input2=img_q, output=IOKey("q_concat"))
+    block += Concat(axis=2, n=2)(input1=txt_k, input2=img_k, output=IOKey("k_concat"))
+    block += Concat(axis=2, n=2)(input1=txt_v, input2=img_v, output=IOKey("v_concat"))
 
     block += attention()(q="q_concat", k="k_concat", v="v_concat", pe=pe, output="attn")
     # TODO: use'[:, txt.shape[1] :]' when fixed.
@@ -488,7 +406,8 @@ def rope(dim: int, theta: int) -> Model:
     assert dim % 2 == 0
     block = Model()
     input = IOKey("input")
-    block += Arange(start=0, stop=dim, step=2)(output="arange")
+    block += Arange(start=0, stop=dim, step=2)(output="arang")
+    block += Cast(dtype=ml.float64)("arang", output="arange")
 
     omega = 1.0 / (theta ** (block.arange / dim))  # type: ignore
     out = input[..., None] * omega
@@ -506,6 +425,7 @@ def rope(dim: int, theta: int) -> Model:
         input4=block.cos[..., None],  # type: ignore
     )
     rope_shape = (B, N, D, 2, 2)
-    block += Reshape()(shape=rope_shape, output=IOKey("output"))
+    block += Reshape()(shape=rope_shape, output="reshape_out")
+    block += Cast(dtype=ml.float32)(input="reshape_out", output=IOKey("output"))
     block.set_canonical_input("input")
     return block

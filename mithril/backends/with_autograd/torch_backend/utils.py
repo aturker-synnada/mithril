@@ -214,7 +214,7 @@ def handle_data_dtype(data: torch.Tensor, dtype: core.Dtype | int) -> torch.Tens
     if data.dtype != dtype_map[dtype.name]:
         as_type = dtype_map[dtype.name]
         assert as_type is not None
-        return data.type(as_type)
+        return data.to(as_type)
     return data
 
 

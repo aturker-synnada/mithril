@@ -18,11 +18,11 @@ from auto_encoder import auto_encoder, AutoEncoderParams, decode
 
 def load_t5(device: str | torch.device = "cuda", max_length: int = 512) -> HFEmbedder:
     # max length 64, 128, 256 and 512 should work (if your sequence is short enough)
-    return HFEmbedder("google/t5-v1_1-xxl", max_length=max_length, torch_dtype=torch.float16).to(device)
+    return HFEmbedder("google/t5-v1_1-xxl", max_length=max_length, torch_dtype=torch.bfloat16).to(device)
 
 
 def load_clip(device: str | torch.device = "cuda") -> HFEmbedder:
-    return HFEmbedder("openai/clip-vit-large-patch14", max_length=77, torch_dtype=torch.float16).to(device)
+    return HFEmbedder("openai/clip-vit-large-patch14", max_length=77, torch_dtype=torch.bfloat16).to(device)
 
 
 @dataclass
@@ -52,9 +52,9 @@ def convert_to_ml_weights(
         param_shape = ml_param_shapes[ml_key]
 
         if torch_state_dict[torch_key].shape != param_shape:
-            params[ml_key] = torch_state_dict[torch_key].half().reshape(param_shape)
+            params[ml_key] = torch_state_dict[torch_key].reshape(param_shape)
         else:
-            params[ml_key] = torch_state_dict[torch_key].half().reshape(param_shape)
+            params[ml_key] = torch_state_dict[torch_key].reshape(param_shape)
 
     return params
 
@@ -149,7 +149,7 @@ def load_flow_model(name: str, backend: ml.Backend, hf_download: bool = True):
     # y_shape = [1, 768]
 
     flux_lm = flux(configs[name].params)
-    flux_pm = ml.compile(flux_lm, backend, jit=False, data_keys={"img", "txt", "img_ids", "txt_ids", "timesteps", "y"}, use_short_namings=False, file_path="flux.py", jit=False)
+    flux_pm = ml.compile(flux_lm, backend, jit=False, data_keys={"img", "txt", "img_ids", "txt_ids", "timesteps", "y"}, use_short_namings=False, file_path="flux.py")
     sd = load_sft(ckpt_path, device=str(backend.device))
     params =  convert_to_ml_weights(flux_pm.shapes, sd)
 
@@ -183,7 +183,7 @@ def load_decoder(name: str, backend: ml.Backend, hf_download: bool = True) -> ml
     # Loading the autoencoder
     print("Init AE")
     decoder_lm = decode(configs[name].ae_params)
-    decoder_pm = ml.compile(decoder_lm, backend=backend, jit=False, inference=True, data_keys=["input"], shapes={"input": [8, 16, 32, 32]}, use_short_namings=False)
+    decoder_pm = ml.compile(decoder_lm, backend=backend, jit=False, inference=True, data_keys=["input"], shapes={"input": [1, 16, 64, 96]}, use_short_namings=False)
     sd = load_sft(ckpt_path)
     params =  convert_to_ml_weights(decoder_pm.shapes, sd)
 
