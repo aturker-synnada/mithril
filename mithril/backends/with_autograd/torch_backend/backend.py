@@ -70,7 +70,7 @@ class TorchBackend(ParallelBackend[torch.Tensor]):
         self.array_creation_funcs = ops.array_creation_funcs
         self.primitive_function_dict = ops.primitive_func_dict
 
-        torch.random.manual_seed(self.seed)
+        self.generator = torch.Generator(device=self.device).manual_seed(0)
 
     @property
     def is_manualgrad(self) -> bool:
@@ -116,7 +116,7 @@ class TorchBackend(ParallelBackend[torch.Tensor]):
 
     def set_seed(self, seed: int):
         self.seed = seed
-        torch.random.manual_seed(seed)
+        self.generator.manual_seed(seed)
 
     def to_device(self, data: torch.Tensor, device: str, asynchronous: bool = False):
         """Move data to the specified device.
@@ -285,13 +285,17 @@ class TorchBackend(ParallelBackend[torch.Tensor]):
         *shape: int | tuple[int, ...] | list[int],
         dtype: Dtype | None = None,
         device_mesh: tuple[int, ...] | None = None,
-        prng_key: Any = None,
+        key: int | None = None,
     ) -> torch.Tensor:
+        generator = self._get_generator(key)
+
         _dtype = self._process_dtype(dtype)
         _shape = process_shape(shape)
 
         # TODO: PRNG key is not used
-        array = torch.randn(_shape, dtype=_dtype, device=self._device)
+        array = torch.randn(
+            _shape, dtype=_dtype, device=self._device, generator=generator
+        )
         if self._parallel_manager is not None:
             array = self._parallel_manager.parallelize(
                 array, self.base_device_mesh, device_mesh
@@ -303,12 +307,15 @@ class TorchBackend(ParallelBackend[torch.Tensor]):
         *shape: int | tuple[int, ...] | list[int],
         dtype: Dtype | None = None,
         device_mesh: tuple[int, ...] | None = None,
-        prng_key: Any = None,
+        key: int | None = None,
     ) -> torch.Tensor:
+        generator = self._get_generator(key)
         _dtype = self._process_dtype(dtype)
         _shape = process_shape(shape)
 
-        array = torch.rand(_shape, dtype=_dtype, device=self._device)
+        array = torch.rand(
+            _shape, dtype=_dtype, device=self._device, generator=generator
+        )
         if self._parallel_manager is not None:
             array = self._parallel_manager.parallelize(
                 array, self.base_device_mesh, device_mesh
@@ -322,12 +329,15 @@ class TorchBackend(ParallelBackend[torch.Tensor]):
         *shape: int | tuple[int, ...] | list[int],
         dtype: Dtype | None = None,
         device_mesh: tuple[int, ...] | None = None,
-        prng_key: Any = None,
+        key: int | None = None,
     ) -> torch.Tensor:
+        generator = self._get_generator(key)
         _dtype = self._process_dtype(dtype, int)
         _shape = process_shape(shape)
 
-        array = torch.randint(low, high, _shape, dtype=_dtype, device=self._device)
+        array = torch.randint(
+            low, high, _shape, dtype=_dtype, device=self._device, generator=generator
+        )
         if self._parallel_manager is not None:
             array = self._parallel_manager.parallelize(
                 array, self.base_device_mesh, device_mesh
@@ -341,10 +351,10 @@ class TorchBackend(ParallelBackend[torch.Tensor]):
         *shape: int | tuple[int, ...] | list[int],
         dtype: Dtype | None = None,
         device_mesh: tuple[int, ...] | None = None,
-        prng_key: Any = None,
+        key: int | None = None,
     ) -> torch.Tensor:
         return (low - high) * self.rand(
-            *shape, dtype=dtype, device_mesh=device_mesh
+            *shape, dtype=dtype, device_mesh=device_mesh, key=key
         ) + high
 
     def _arange(
@@ -650,6 +660,12 @@ class TorchBackend(ParallelBackend[torch.Tensor]):
 
     def jacfwd(self, fn: Callable[..., dict[str, torch.Tensor]]) -> Callable:
         return torch_jacfwd(fn)
+
+    def _get_generator(self, key: int | None):
+        if key is None:
+            return self.generator
+        else:
+            return torch.Generator(device=self.device).manual_seed(key)
 
     def _process_dtype(
         self,
