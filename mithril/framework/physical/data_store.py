@@ -391,8 +391,6 @@ class StaticDataStore(Generic[DataType]):
                         kwargs["device"] = self.backend.get_device()
 
                 static_value = fn(*args, **kwargs)
-                if isinstance(static_value, self.backend.DataType):
-                    static_value = self.backend.array(static_value)
 
 
                 # Check astype needed
