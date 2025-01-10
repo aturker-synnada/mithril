@@ -1,9 +1,25 @@
-import torch
-import mithril as ml
+# Copyright 2022 Synnada, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import math
-from einops import rearrange, repeat
-from typing import Callable
+from collections.abc import Callable
+
+import torch
 from conditioner import HFEmbedder
+from einops import rearrange, repeat
+
+import mithril as ml
 
 
 def get_noise(
@@ -25,8 +41,9 @@ def get_noise(
     )
 
 
-
-def prepare(t5: HFEmbedder, clip: HFEmbedder, img: torch.Tensor, prompt: str | list[str]) -> dict[str, torch.Tensor]:
+def prepare(
+    t5: HFEmbedder, clip: HFEmbedder, img: torch.Tensor, prompt: str | list[str]
+) -> dict[str, torch.Tensor]:
     bs, c, h, w = img.shape
     if bs == 1 and not isinstance(prompt, str):
         bs = len(prompt)
@@ -91,7 +108,6 @@ def get_lin_function(
     return lambda x: m * x + b
 
 
-
 def unpack(x: torch.Tensor, height: int, width: int) -> torch.Tensor:
     return rearrange(
         x,
@@ -117,24 +133,27 @@ def denoise(
     guidance: float = 4.0,
 ):
     # this is ignored for schnell
-    guidance_vec = torch.full((img.shape[0],), guidance, device=img.device, dtype=img.dtype)
-    for t_curr, t_prev in zip(timesteps[:-1], timesteps[1:]):
+    guidance_vec = torch.full(
+        (img.shape[0],), guidance, device=img.device, dtype=img.dtype
+    )
+    for t_curr, t_prev in zip(timesteps[:-1], timesteps[1:], strict=False):
         t_vec = torch.full((img.shape[0],), t_curr, dtype=img.dtype, device=img.device)
-        pred = model.evaluate(params, {
-            "img":img,
-            "img_ids":img_ids,
-            "txt":txt,
-            "txt_ids":txt_ids,
-            "y":vec,
-            "timesteps":t_vec,
-            "guidance":guidance_vec,
-        }
+        pred = model.evaluate(
+            params,
+            {
+                "img": img,
+                "img_ids": img_ids,
+                "txt": txt,
+                "txt_ids": txt_ids,
+                "y": vec,
+                "timesteps": t_vec,
+                "guidance": guidance_vec,
+            },
         )
 
         img = img + (t_prev - t_curr) * pred["output"]
 
     return img
-
 
 
 def unpack(x: torch.Tensor, height: int, width: int) -> torch.Tensor:

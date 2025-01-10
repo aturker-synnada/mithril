@@ -1,7 +1,18 @@
-from dataclasses import dataclass
+# Copyright 2022 Synnada, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-from mithril import IOKey
-from mithril.models import Add, Concat, Linear, Model, Buffer
+from dataclasses import dataclass
 
 from examples.flux.layers import (
     double_stream_block,
@@ -11,6 +22,8 @@ from examples.flux.layers import (
     single_stream_block,
     timestep_embedding,
 )
+from mithril import IOKey
+from mithril.models import Add, Buffer, Concat, Linear, Model
 
 
 @dataclass
@@ -74,8 +87,6 @@ def flux(params: FluxParams):
         img_name = f"img{i}"
         txt_name = f"txt{i}"
 
-
-
     flux += Concat(n=2, axis=1)(input1=txt_name, input2=img_name, output="img_concat")
     img_name = "img_concat"
     for i in range(params.depth_single_blocks):
@@ -91,7 +102,6 @@ def flux(params: FluxParams):
             output=f"img_single_{i}",
         )
         img_name = f"img_single_{i}"
-
 
     flux += Buffer()(input=img_name, output=IOKey("img_buffer"))
     img = getattr(flux, img_name)

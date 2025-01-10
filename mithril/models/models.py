@@ -750,11 +750,10 @@ class GroupNorm(Model):
         super().__init__(name=name)
 
         # Assumed input shape is [N, C, H, W]
-        input_key = IOKey(name="input", value=input)
+        input_key = IOKey(name="input", value=input, shape=["B", "C", "H", "W"])
         input_shape = input_key.shape
-        B = input_shape[0]
 
-        input_key = input_key.reshape((B, num_groups, -1))
+        input_key = input_key.reshape((input_shape[0], num_groups, -1))
 
         mean = input_key.mean(axis=-1, keepdim=True)
         var = input_key.var(axis=-1, keepdim=True)
@@ -762,7 +761,6 @@ class GroupNorm(Model):
         input_key = (input_key - mean) / (var + eps).sqrt()
         self += Reshape()(input=input_key, shape=input_shape)
 
-        self._set_shapes({"input": ["B", "C", "H", "W"]})
         self.input.set_differentiable(False)
 
         shapes: dict[str, ShapeTemplateType] = {
@@ -783,6 +781,8 @@ class GroupNorm(Model):
             add._set_shapes(shapes)
 
         self += Buffer()(input=self.canonical_output, output=IOKey(name="output"))
+
+        self.set_shapes({"input": ["B", "C", "H", "W"], "output": ["B", "C", "H", "W"]})
 
     def __call__(  # type: ignore[override]
         self,

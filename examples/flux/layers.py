@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from copy import deepcopy
 import math
+from copy import deepcopy
+
 import mithril as ml
 from mithril import IOKey
 from mithril.models import *
 from mithril.models import (
     Arange,
     Buffer,
+    Cast,
     Concat,
     Cosine,
     Gelu,
@@ -35,8 +37,8 @@ from mithril.models import (
     Split,
     Transpose,
     ZerosLike,
-    Cast
 )
+
 
 def apply_rope() -> Model:
     block = Model()
@@ -50,7 +52,6 @@ def apply_rope() -> Model:
     B, L, H = xq_shape[0], xq_shape[1], xq_shape[2]
     block += Reshape()(xq, shape=(B, L, H, -1, 1, 2), output="xq_")
     B, L, H = xk_shape[0], xk_shape[1], xk_shape[2]
-    # B,L,H = *xk.shape is not supported yet.
     block += Reshape()(xk, shape=(B, L, H, -1, 1, 2), output="xk_")
     # Do the math
     xq_out = (
@@ -60,7 +61,6 @@ def apply_rope() -> Model:
         freqs_cis[..., 0] * block.xk_[..., 0] + freqs_cis[..., 1] * block.xk_[..., 1]  # type: ignore[attr-defined]
     )
 
-    # We are explicitly defining the output connections with IOKey
     block += Reshape()(xq_out, shape=xq_shape, output="xq_out_raw")
     block += Reshape()(xk_out, shape=xk_shape, output="xk_out_raw")
     block += Cast(dtype=ml.bfloat16)(input="xq_out_raw", output=IOKey("xq_out"))
@@ -95,13 +95,11 @@ def timestep_embedding(dim: int, max_period: int = 10_000, time_factor: float = 
     block = Model()
 
     input = IOKey("input")
-    
+
     input = (input * time_factor)[:, None]
 
     block += Cast(dtype=ml.float32)(input, output="input_casted")
-    
 
-    
     half = dim // 2
 
     block += Arange(start=0.0, stop=half)(output="arange_out")
@@ -118,12 +116,10 @@ def timestep_embedding(dim: int, max_period: int = 10_000, time_factor: float = 
 
     if dim % 2:
         block += ZerosLike()(block.embedding[:, :1], output="zeros_like_out")
-        block += Concat(2, axis=-1)(
-            input1="embedding", input2="zeros_like_out"
-        )
+        block += Concat(2, axis=-1)(input1="embedding", input2="zeros_like_out")
         block += Cast(dtype=ml.bfloat16)(input="zeros_like_out", output=IOKey("output"))
     else:
-        block += Cast(dtype=ml.bfloat16)(input="embedding",output=IOKey("output"))
+        block += Cast(dtype=ml.bfloat16)(input="embedding", output=IOKey("output"))
 
     return block
 
@@ -147,9 +143,9 @@ def rms_norm(dim: int, name: str | None = None):
     block += Buffer()(rrms, IOKey("rrms"))
     # NOTE: Temporarily, we have to use Buffer to attach the functional connections
     # to the model. This is a workaround for the current limitation of the API.
-    block += Buffer()(block.input_casted*rrms, output=IOKey("mult"))
-    block += Cast(dtype=ml.bfloat16)(block.input_casted*rrms, output=IOKey("casted"))
-    block += Multiply()(left="casted", right = scale, output=IOKey("output"))
+    block += Buffer()(block.input_casted * rrms, output=IOKey("mult"))
+    block += Cast(dtype=ml.bfloat16)(block.input_casted * rrms, output=IOKey("casted"))
+    block += Multiply()(left="casted", right=scale, output=IOKey("output"))
 
     return block
 

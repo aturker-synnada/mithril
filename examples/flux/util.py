@@ -1,28 +1,43 @@
-from huggingface_hub import hf_hub_download
-from safetensors.torch import load_file as load_sft
+# Copyright 2022 Synnada, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
-import torch
-import mithril as ml
-from einops import rearrange
-from conditioner import HFEmbedder
-from imwatermark import WatermarkEncoder
 from dataclasses import dataclass
 
-from model import flux
+import torch
+from auto_encoder import AutoEncoderParams, decode
+from conditioner import HFEmbedder
+from einops import rearrange
+from huggingface_hub import hf_hub_download
+from imwatermark import WatermarkEncoder
+from model import FluxParams, flux
+from safetensors.torch import load_file as load_sft
 
-
-
-from model import flux, FluxParams
-from auto_encoder import auto_encoder, AutoEncoderParams, decode
+import mithril as ml
 
 
 def load_t5(device: str | torch.device = "cuda", max_length: int = 512) -> HFEmbedder:
     # max length 64, 128, 256 and 512 should work (if your sequence is short enough)
-    return HFEmbedder("google/t5-v1_1-xxl", max_length=max_length, torch_dtype=torch.bfloat16).to(device)
+    return HFEmbedder(
+        "google/t5-v1_1-xxl", max_length=max_length, torch_dtype=torch.bfloat16
+    ).to(device)
 
 
 def load_clip(device: str | torch.device = "cuda") -> HFEmbedder:
-    return HFEmbedder("openai/clip-vit-large-patch14", max_length=77, torch_dtype=torch.bfloat16).to(device)
+    return HFEmbedder(
+        "openai/clip-vit-large-patch14", max_length=77, torch_dtype=torch.bfloat16
+    ).to(device)
 
 
 @dataclass
@@ -34,7 +49,6 @@ class ModelSpec:
     repo_id: str | None
     repo_flow: str | None
     repo_ae: str | None
-
 
 
 def convert_to_ml_weights(
@@ -57,7 +71,6 @@ def convert_to_ml_weights(
             params[ml_key] = torch_state_dict[torch_key].reshape(param_shape)
 
     return params
-
 
 
 configs = {
@@ -141,36 +154,24 @@ def load_flow_model(name: str, backend: ml.Backend, hf_download: bool = True):
         ckpt_path = hf_hub_download(configs[name].repo_id, configs[name].repo_flow)
 
 
-    # img_shape = [1, 1024, 64]
-    # txt_shape = [1, 256, 4096]
-    # img_ids_shape = [1, 1024, 3]
-    # txt_ids_shape = [1, 256, 3]
-    # timesteps_shape = [1]
-    # y_shape = [1, 768]
-
     flux_lm = flux(configs[name].params)
-    flux_pm = ml.compile(flux_lm, backend, jit=False, data_keys={"img", "txt", "img_ids", "txt_ids", "timesteps", "y"}, use_short_namings=False, file_path="flux.py")
+    flux_pm = ml.compile(
+        flux_lm,
+        backend,
+        jit=False,
+        data_keys={"img", "txt", "img_ids", "txt_ids", "timesteps", "y"},
+        use_short_namings=False,
+        file_path="flux.py",
+    )
     sd = load_sft(ckpt_path, device=str(backend.device))
-    params =  convert_to_ml_weights(flux_pm.shapes, sd)
+    params = convert_to_ml_weights(flux_pm.shapes, sd)
 
     return flux_pm, params
 
 
-
-    # with torch.device("meta" if ckpt_path is not None else device):
-    #     model = Flux(configs[name].params).to(torch.bfloat16)
-
-    if ckpt_path is not None:
-        print("Loading checkpoint")
-        # load_sft doesn't support torch.device
-        sd = load_sft(ckpt_path, device=str(device))
-        missing, unexpected = model.load_state_dict(sd, strict=False, assign=True)
-        print_load_warning(missing, unexpected)
-    return model
-
-
-
-def load_decoder(name: str, backend: ml.Backend, hf_download: bool = True) -> ml.models.Model:
+def load_decoder(
+    name: str, backend: ml.Backend, hf_download: bool = True
+) -> ml.models.Model:
     ckpt_path = configs[name].ae_path
     if (
         ckpt_path is None
@@ -183,14 +184,19 @@ def load_decoder(name: str, backend: ml.Backend, hf_download: bool = True) -> ml
     # Loading the autoencoder
     print("Init AE")
     decoder_lm = decode(configs[name].ae_params)
-    decoder_pm = ml.compile(decoder_lm, backend=backend, jit=False, inference=True, data_keys=["input"], shapes={"input": [1, 16, 64, 96]}, use_short_namings=False)
+    decoder_pm = ml.compile(
+        decoder_lm,
+        backend=backend,
+        jit=False,
+        inference=True,
+        data_keys=["input"],
+        shapes={"input": [1, 16, 64, 96]},
+        use_short_namings=False,
+    )
     sd = load_sft(ckpt_path)
-    params =  convert_to_ml_weights(decoder_pm.shapes, sd)
+    params = convert_to_ml_weights(decoder_pm.shapes, sd)
 
     return decoder_pm, params
-
-
-
 
 
 class WatermarkEmbedder:
@@ -215,14 +221,16 @@ class WatermarkEmbedder:
         if squeeze:
             image = image[None, ...]
         n = image.shape[0]
-        image_np = rearrange((255 * image).detach().cpu(), "n b c h w -> (n b) h w c").numpy()[:, :, :, ::-1]
+        image_np = rearrange(
+            (255 * image).detach().cpu(), "n b c h w -> (n b) h w c"
+        ).numpy()[:, :, :, ::-1]
         # torch (b, c, h, w) in [0, 1] -> numpy (b, h, w, c) [0, 255]
         # watermarking libary expects input as cv2 BGR format
         for k in range(image_np.shape[0]):
             image_np[k] = self.encoder.encode(image_np[k], "dwtDct")
-        image = torch.from_numpy(rearrange(image_np[:, :, :, ::-1], "(n b) h w c -> n b c h w", n=n)).to(
-            image.device
-        )
+        image = torch.from_numpy(
+            rearrange(image_np[:, :, :, ::-1], "(n b) h w c -> n b c h w", n=n)
+        ).to(image.device)
         image = torch.clamp(image / 255, min=0.0, max=1.0)
         if squeeze:
             image = image[0]

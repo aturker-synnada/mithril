@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
 import numpy as np
 import torch
-import gc
-import os
 
 import mithril as ml
 from examples.flux.auto_encoder import (
@@ -38,8 +38,8 @@ from examples.flux.layers import rms_norm as rms_norm_mithril
 from examples.flux.layers import rope as rope_mithril
 from examples.flux.layers import single_stream_block as single_stream_block_mithril
 from examples.flux.layers import timestep_embedding as timestep_embedding_mithril
-from examples.flux.model import flux as flux_mithril
 from examples.flux.model import FluxParams
+from examples.flux.model import flux as flux_mithril
 from examples.flux.original_impl import (
     AttnBlock,
     Decoder,
@@ -89,11 +89,11 @@ def load_weights(
         ml_params[ml_key] = parameter
 
 
-
 def test_resnet_block():
     m_model = resnet_block(64, 64)
     o_model = ResnetBlock(64, 64)
 
+    pm = ml.compile(m_model, backend=ml.TorchBackend(), jit=False, file_path="ekmek.py")
     torch_inp = torch.randn(8, 64, 32, 48)
 
     pm = ml.compile(
@@ -128,7 +128,7 @@ def test_resnet_block():
 def test_attn_block():
     m_model = attn_block(512)
     o_model = AttnBlock(512)
-    m_model.set_shapes({"input": [8, 512, 32, 32]})
+    m_model.set_shapes({"input": [None, 512, None, None]})
 
     torch_inp = torch.randn(8, 512, 32, 32)
 
@@ -201,7 +201,7 @@ def test_upsample():
     o_model = Upsample(64)
 
     torch_inp = torch.randn(8, 64, 32, 48)
-    #m_model.set_shapes({"input": [8, 64, 32, 48]})
+    # m_model.set_shapes({"input": [8, 64, 32, 48]})
 
     pm = ml.compile(
         m_model,
@@ -223,7 +223,7 @@ def test_upsample():
             shapes={"input": [8, 64, 32, 48]},
             data_keys={"input"},
             use_short_namings=False,
-            jit=False
+            jit=False,
         )
 
         inp = torch.tensor(torch_inp.numpy())
@@ -287,7 +287,6 @@ def test_encoder():
         np.testing.assert_allclose(res, expected_result, 5e-5, 5e-5)
 
 
-
 def test_decoder():
     backends = [
         # ml.JaxBackend(),
@@ -321,8 +320,7 @@ def test_decoder():
         data_keys={"input"},
         jit=False,
         file_path="ekmek.py",
-        use_short_namings=False
-
+        use_short_namings=False,
     )
 
     params = pm.randomize_params()
@@ -337,7 +335,7 @@ def test_decoder():
             shapes={"input": [8, 16, 32, 32]},
             data_keys={"input"},
             jit=False,
-            use_short_namings=False
+            use_short_namings=False,
         )
 
         inp = backend.array(torch_inp.numpy())
@@ -704,7 +702,6 @@ def test_single_stream_block():
             },
             data_keys={"input", "vec", "pe"},
             use_short_namings=False,
-
         )
 
         input = backend.array(input_ref.numpy())
@@ -824,12 +821,19 @@ def test_flux():
     if not use_torch:
         flux_m = flux_mithril(flux_params)
         backend = ml.TorchBackend(precision=16)
-        pm = ml.compile(flux_m, backend=backend, data_keys={"img","txt", "img_ids", "txt_ids", "timesteps", "y"}, use_short_namings=False, jit=False, file_path="flux.py")
+        pm = ml.compile(
+            flux_m,
+            backend=backend,
+            data_keys={"img", "txt", "img_ids", "txt_ids", "timesteps", "y"},
+            use_short_namings=False,
+            jit=False,
+            file_path="flux.py",
+        )
         params = {}
-        
+
         for key in os.listdir("flux_weights"):
             weight = np.load(f"flux_weights/{key}")["arr_0"]
-            params[key.replace(".npz","")] = backend.array(weight)
+            params[key.replace(".npz", "")] = backend.array(weight)
             del weight
 
         img = params.pop("img")
@@ -840,8 +844,15 @@ def test_flux():
         y = params.pop("y")
         img_out = params.pop("imgout")
         txt_out = params.pop("txtout")
-        #txt_out = params.pop("txtout")
-        data = {"img": img, "txt": txt, "img_ids": img_ids, "txt_ids": txt_ids, "timesteps": timesteps, "y": y}
+        # txt_out = params.pop("txtout")
+        data = {
+            "img": img,
+            "txt": txt,
+            "img_ids": img_ids,
+            "txt_ids": txt_ids,
+            "timesteps": timesteps,
+            "y": y,
+        }
         res = pm.evaluate(params, data)
     else:
         flux_torch = Flux(flux_params).half().eval()
@@ -870,7 +881,6 @@ def test_flux():
         img_out, txt_out = flux_torch(img, img_ids, txt, txt_ids, timesteps, y)
         np.savez("flux_weights/imgout", img_out.detach().numpy())
         np.savez("flux_weights/txtout", txt_out.detach().numpy())
-        #np.savez("flux_weights/txtout", txt_out.detach().numpy())
+        # np.savez("flux_weights/txtout", txt_out.detach().numpy())
         for key, value in flux_torch.state_dict().items():
             np.savez(f"flux_weights/{key.replace(".","_").lower()}.npz", value.numpy())
-

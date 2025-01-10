@@ -392,7 +392,6 @@ class StaticDataStore(Generic[DataType]):
 
                 static_value = fn(*args, **kwargs)
 
-
                 # Check astype needed
                 if self.backend.is_manualgrad and is_type_adjustment_required(
                     self.all_data, value_mapping

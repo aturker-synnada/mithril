@@ -20,7 +20,6 @@ import torch.nn as nn
 from einops import rearrange
 
 
-
 @dataclass
 class AutoEncoderParams:
     resolution: int
@@ -32,6 +31,7 @@ class AutoEncoderParams:
     z_channels: int
     scale_factor: float
     shift_factor: float
+
 
 def swish(x: torch.Tensor) -> torch.Tensor:
     return x * torch.sigmoid(x)
@@ -235,7 +235,7 @@ class Encoder(nn.Module):
         h = swish(h)
         h = self.conv_out(h)
         return h
-    
+
 
 class Decoder(nn.Module):
     def __init__(
@@ -262,7 +262,9 @@ class Decoder(nn.Module):
         self.z_shape = (1, z_channels, curr_res, curr_res)
 
         # z to block_in
-        self.conv_in = nn.Conv2d(z_channels, block_in, kernel_size=3, stride=1, padding=1)
+        self.conv_in = nn.Conv2d(
+            z_channels, block_in, kernel_size=3, stride=1, padding=1
+        )
 
         # middle
         self.mid = nn.Module()
@@ -288,7 +290,9 @@ class Decoder(nn.Module):
             self.up.insert(0, up)  # prepend to get consistent order
 
         # end
-        self.norm_out = nn.GroupNorm(num_groups=32, num_channels=block_in, eps=1e-6, affine=True)
+        self.norm_out = nn.GroupNorm(
+            num_groups=32, num_channels=block_in, eps=1e-6, affine=True
+        )
         self.conv_out = nn.Conv2d(block_in, out_ch, kernel_size=3, stride=1, padding=1)
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
@@ -308,7 +312,6 @@ class Decoder(nn.Module):
                     h = self.up[i_level].attn[i_block](h)
             if i_level != 0:
                 h = self.up[i_level].upsample(h)
-            
 
         # end
         h = self.norm_out(h)
@@ -342,8 +345,7 @@ class DiagonalGaussian(nn.Module):
             return mean + std * torch.randn_like(mean)
         else:
             return mean
-        
-    
+
 
 class AutoEncoder(nn.Module):
     def __init__(self, params: AutoEncoderParams):
@@ -381,7 +383,6 @@ class AutoEncoder(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.decode(self.encode(x))
-
 
 
 class EmbedND(nn.Module):
@@ -711,15 +712,21 @@ class Flux(nn.Module):
             )
         pe_dim = params.hidden_size // params.num_heads
         if sum(params.axes_dim) != pe_dim:
-            raise ValueError(f"Got {params.axes_dim} but expected positional dim {pe_dim}")
+            raise ValueError(
+                f"Got {params.axes_dim} but expected positional dim {pe_dim}"
+            )
         self.hidden_size = params.hidden_size
         self.num_heads = params.num_heads
-        self.pe_embedder = EmbedND(dim=pe_dim, theta=params.theta, axes_dim=params.axes_dim)
+        self.pe_embedder = EmbedND(
+            dim=pe_dim, theta=params.theta, axes_dim=params.axes_dim
+        )
         self.img_in = nn.Linear(self.in_channels, self.hidden_size, bias=True)
         self.time_in = MLPEmbedder(in_dim=256, hidden_dim=self.hidden_size)
         self.vector_in = MLPEmbedder(params.vec_in_dim, self.hidden_size)
         self.guidance_in = (
-            MLPEmbedder(in_dim=256, hidden_dim=self.hidden_size) if params.guidance_embed else nn.Identity()
+            MLPEmbedder(in_dim=256, hidden_dim=self.hidden_size)
+            if params.guidance_embed
+            else nn.Identity()
         )
         self.txt_in = nn.Linear(params.context_in_dim, self.hidden_size)
 
@@ -731,14 +738,16 @@ class Flux(nn.Module):
                     mlp_ratio=params.mlp_ratio,
                     qkv_bias=params.qkv_bias,
                 )
-                for _ in range(3)#params.depth)
+                for _ in range(3)  # params.depth)
             ]
         )
 
         self.single_blocks = nn.ModuleList(
             [
-                SingleStreamBlock(self.hidden_size, self.num_heads, mlp_ratio=params.mlp_ratio)
-                for _ in range(3)#params.depth_single_blocks)
+                SingleStreamBlock(
+                    self.hidden_size, self.num_heads, mlp_ratio=params.mlp_ratio
+                )
+                for _ in range(3)  # params.depth_single_blocks)
             ]
         )
 
@@ -762,7 +771,9 @@ class Flux(nn.Module):
         vec = self.time_in(timestep_embedding(timesteps, 256))
         if self.params.guidance_embed:
             if guidance is None:
-                raise ValueError("Didn't get guidance strength for guidance distilled model.")
+                raise ValueError(
+                    "Didn't get guidance strength for guidance distilled model."
+                )
             vec = vec + self.guidance_in(timestep_embedding(guidance, 256))
         vec = vec + self.vector_in(y)
         txt = self.txt_in(txt)
@@ -772,7 +783,7 @@ class Flux(nn.Module):
 
         for block in self.double_blocks:
             img, txt = block(img=img, txt=txt, vec=vec, pe=pe)
-        
+
         img_double = img
 
         img = torch.cat((txt, img), 1)
@@ -782,6 +793,3 @@ class Flux(nn.Module):
 
         img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
         return img
-
-
-
