@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import ast
-import keyword
 
 from ...backends.backend import Backend, DataType
 from ..common import ShapeNode
@@ -23,13 +22,13 @@ from ..common import ShapeNode
 def partial_array_creation_func(
     backend: Backend[DataType], formula_key: str
 ) -> ast.stmt:
-    kwargs = [ast.keyword(arg="precision", value=ast.Constant(value=backend.precision))]
+    kwargs = [
+        ast.keyword(arg="default_dtype", value=ast.Constant(value=backend._dtype.name))
+    ]
 
-    # We don't need device in manulgrad(Numpy)
-    if not backend.is_manualgrad:
-        kwargs.append(
-            ast.keyword(arg="device", value=ast.Constant(value=backend.get_device()))
-        )
+    kwargs.append(
+        ast.keyword(arg="device", value=ast.Constant(value=backend.get_device()))
+    )
 
     partial_fn_call = ast.Call(
         func=ast.Name(id="partial", ctx=ast.Load()),
@@ -44,24 +43,18 @@ def partial_array_creation_func(
 
 
 def convert_to_ast_arg(
-    arg_key: str, reserved_keys: list[str], defaults: dict[str, ast.Name] | None = None
+    key: str, arg_name: ast.Name, defaults: dict[str, ast.Name] | None = None
 ) -> ast.Name:
-    if defaults is not None and arg_key in defaults:
-        return defaults[arg_key]
+    if defaults is not None and key in defaults:
+        return defaults[key]
 
-    if keyword.iskeyword(arg_key) or arg_key in reserved_keys:
-        arg_key = f"_{arg_key}"
-
-    return ast.Name(arg_key)
+    return arg_name
 
 
 def convert_to_ast_kwarg(
-    arg_key: str, value: str, defaults: dict[str, ast.expr]
+    arg_key: str, value: ast.Name, defaults: dict[str, ast.expr]
 ) -> ast.keyword:
-    if arg_key in defaults:
-        _value = defaults[arg_key]
-    else:
-        _value = ast.Name(id=value, ctx=ast.Load())
+    _value = defaults.get(arg_key, value)
 
     kwarg = ast.keyword(arg=arg_key, value=_value)
     return kwarg

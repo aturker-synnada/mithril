@@ -52,12 +52,15 @@ class MlxBackend(Backend[mx.array]):
         self.primitive_function_dict = ops.primitive_func_dict
         self.prng_key = mx.random.key(self.seed)
 
+        for key, value in utils.dtype_map.items():
+            setattr(self, key, value)
+
     @property
     def is_manualgrad(self) -> bool:
         return False
 
     @property
-    def inf(self):
+    def inf(self) -> float:
         return mx.inf
 
     @property

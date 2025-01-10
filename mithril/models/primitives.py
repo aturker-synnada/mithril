@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from types import NoneType
 
-from ..core import Constant
+from ..core import Constant, Dtype
 from ..framework.common import (
     NOT_GIVEN,
     TBD,
@@ -1635,6 +1635,7 @@ class TsnePJoint(PrimitiveModel):
 class EyeComplement(PrimitiveModel):
     N: Connection
     M: Connection
+    dtype: Connection
     output: Connection
 
     def __init__(
@@ -1642,6 +1643,7 @@ class EyeComplement(PrimitiveModel):
         name: str | None = None,
         N: int | ToBeDetermined = TBD,
         M: int | ToBeDetermined | None = None,
+        dtype: Dtype | None = None,
     ) -> None:
         super().__init__(
             formula_key="ones_with_zero_diag",
@@ -1649,6 +1651,7 @@ class EyeComplement(PrimitiveModel):
             output=BaseKey(shape=["N", "M"], type=MyTensor[float]),
             N=BaseKey(type=int, value=N),
             M=BaseKey(type=int | None, value=M),
+            dtype=BaseKey(type=Dtype | None, value=dtype),
         )
         self._set_constraint(fn=eye_constraints, keys=["output", "N", "M"])
 
@@ -1656,14 +1659,16 @@ class EyeComplement(PrimitiveModel):
         self,
         N: ConnectionType = NOT_GIVEN,
         M: ConnectionType = NOT_GIVEN,
+        dtype: ConnectionType = NOT_GIVEN,
         output: ConnectionType = NOT_GIVEN,
     ) -> ExtendInfo:
-        return super().__call__(N=N, M=M, output=output)
+        return super().__call__(N=N, M=M, dtype=dtype, output=output)
 
 
 class Eye(PrimitiveModel):
     N: Connection
     M: Connection
+    dtype: Connection
     output: Connection
 
     def __init__(
@@ -1671,6 +1676,7 @@ class Eye(PrimitiveModel):
         name: str | None = None,
         N: int | ToBeDetermined = TBD,
         M: int | ToBeDetermined | None = None,
+        dtype: Dtype | None = None,
     ) -> None:
         super().__init__(
             formula_key="eye",
@@ -1678,6 +1684,7 @@ class Eye(PrimitiveModel):
             output=BaseKey(shape=["N", "M"], type=MyTensor[float]),
             N=BaseKey(type=int, value=N),
             M=BaseKey(type=int | None, value=M),
+            dtype=BaseKey(type=Dtype | None, value=dtype),
         )
         self._set_constraint(fn=eye_constraints, keys=["output", "N", "M"])
 
@@ -1685,9 +1692,10 @@ class Eye(PrimitiveModel):
         self,
         N: ConnectionType = NOT_GIVEN,
         M: ConnectionType = NOT_GIVEN,
+        dtype: ConnectionType = NOT_GIVEN,
         output: ConnectionType = NOT_GIVEN,
     ) -> ExtendInfo:
-        return super().__call__(N=N, M=M, output=output)
+        return super().__call__(N=N, M=M, dtype=dtype, output=output)
 
 
 class Cholesky(PrimitiveModel):
@@ -1806,6 +1814,7 @@ class Arange(PrimitiveModel):
     start: Connection
     stop: Connection
     step: Connection
+    dtype: Connection
     output: Connection
 
     def __init__(
@@ -1814,6 +1823,7 @@ class Arange(PrimitiveModel):
         start: int | float | ToBeDetermined = 0,
         stop: int | float | ToBeDetermined = TBD,
         step: int | float | ToBeDetermined = 1,
+        dtype: Dtype | None = None,
     ) -> None:
         all_defined = False
         if (
@@ -1839,6 +1849,7 @@ class Arange(PrimitiveModel):
             start=BaseKey(type=int | float, value=start),
             stop=BaseKey(type=int | float, value=stop),
             step=BaseKey(type=int | float, value=step),
+            dtype=BaseKey(type=Dtype | None, value=dtype),
         )
 
         if stop is TBD:
@@ -1858,20 +1869,25 @@ class Arange(PrimitiveModel):
         start: ConnectionType = NOT_GIVEN,
         stop: ConnectionType = NOT_GIVEN,
         step: ConnectionType = NOT_GIVEN,
+        dtype: ConnectionType = NOT_GIVEN,
         output: ConnectionType = NOT_GIVEN,
     ) -> ExtendInfo:
-        return super().__call__(start=start, stop=stop, step=step, output=output)
+        return super().__call__(
+            start=start, stop=stop, step=step, dtype=dtype, output=output
+        )
 
 
 class Randn(PrimitiveModel):
     shape: Connection
     key: Connection
+    dtype: Connection
     output: Connection
 
     def __init__(
         self,
         shape: tuple[int, ...] | ToBeDetermined = TBD,
         key: int | ToBeDetermined = TBD,
+        dtype: Dtype | None = None,
         name: str | None = None,
     ) -> None:
         super().__init__(
@@ -1880,18 +1896,20 @@ class Randn(PrimitiveModel):
             output=BaseKey(shape=[("output", ...)], type=GenericTensorType),
             shape=BaseKey(type=tuple[int, ...], value=shape),
             key=BaseKey(type=int, value=key),
+            dtype=BaseKey(type=Dtype | None, value=dtype),
         )
 
-        self._random_keys.add("key")
+        self.random_keys.add("key")
         self.set_constraint(randn_constraints, keys=["output", "shape"])
 
     def __call__(  # type: ignore[override]
         self,
         shape: ConnectionType = NOT_GIVEN,
         key: ConnectionType = NOT_GIVEN,
+        dtype: ConnectionType = NOT_GIVEN,
         output: ConnectionType = NOT_GIVEN,
     ) -> ExtendInfo:
-        return super().__call__(shape=shape, key=key, output=output)
+        return super().__call__(shape=shape, key=key, dtype=dtype, output=output)
 
 
 class BroadcastTo(PrimitiveModel):

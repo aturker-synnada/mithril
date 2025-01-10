@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 from collections.abc import Callable, Iterable, Sequence
 from functools import partial
 from typing import Any
@@ -20,24 +21,22 @@ import numpy as np
 
 from .... import core
 from ....utils.type_utils import is_int_tuple_tuple
-from ....utils.utils import binary_search, find_dominant_type
+from ....utils.utils import BiMap, binary_search, find_dominant_type
 from ...utils import DtypeSubTypes
 
 ArrayType = np.ndarray
 
-dtype_map: dict[str, Any] = {
-    "int16": np.int16,
-    "int32": np.int32,
-    "int": np.int32,
-    "int64": np.int64,
-    "long": np.int64,
-    "float16": np.float16,
-    "float32": np.float32,
-    "float": np.float32,
-    "float64": np.float64,
-    "double": np.float64,
-    "bool": np.bool_,
-}
+dtype_map: BiMap[str, Any] = BiMap(
+    {
+        "int16": np.int16,
+        "int32": np.int32,
+        "int64": np.int64,
+        "float16": np.float16,
+        "float32": np.float32,
+        "float64": np.float64,
+        "bool": np.bool_,
+    }
+)
 
 CacheType = dict[str, Any]
 
@@ -86,7 +85,7 @@ def write_into_cache[T: np.ndarray[Any, Any] | tuple[Any, ...] | int | float](
     else:
         result = cache[key]
     # TODO: Resolve here
-    return result  # type: ignore
+    return result
 
 
 def get_submatrices1d(
@@ -338,8 +337,23 @@ def handle_data_dtype(
     return data
 
 
-def make_array(input: int | float | np.ndarray[Any, Any], precision: int):
-    return handle_data_precision(np.array(input), precision=precision)
+def make_array(
+    input: int | float | np.ndarray[Any, Any],
+    *,
+    dtype: str | None = None,
+    device: str,
+    default_dtype: str,
+):
+    if dtype is None:
+        dtype = default_dtype
+
+    dtype = determine_dtype(
+        input,
+        None,
+        core.Dtype[default_dtype],
+        precision=int(re.findall(r"\d+", dtype)[-1]),
+    )
+    return np.array(input, dtype=dtype_map[dtype])
 
 
 def accumulate_grads(

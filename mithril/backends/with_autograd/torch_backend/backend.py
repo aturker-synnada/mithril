@@ -72,6 +72,9 @@ class TorchBackend(ParallelBackend[torch.Tensor]):
 
         self.generator = torch.Generator(device=self.device).manual_seed(0)
 
+        for key, value in utils.dtype_map.items():
+            setattr(self, key, value)
+
     @property
     def is_manualgrad(self) -> bool:
         return False

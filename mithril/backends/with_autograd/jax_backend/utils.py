@@ -21,25 +21,23 @@ import numpy as np
 from jax import vmap
 
 from .... import core
-from ....utils.utils import binary_search, find_dominant_type
+from ....utils.utils import BiMap, binary_search, find_dominant_type
 from ...utils import DtypeSubTypes
 
 ArrayType = jax.Array
 
-dtype_map: dict[str, jnp.dtype[Any]] = {
-    "int16": jnp.int16,
-    "int32": jnp.int32,
-    "int": jnp.int32,
-    "int64": jnp.int64,
-    "long": jnp.int64,
-    "float16": jnp.float16,
-    "bfloat16": jnp.bfloat16,
-    "float32": jnp.float32,
-    "float": jnp.float32,
-    "float64": jnp.float64,
-    "double": jnp.float64,
-    "bool": jnp.bool_,
-}
+dtype_map: BiMap[str, jnp.dtype[Any]] = BiMap(
+    {
+        "int16": jnp.int16,
+        "int32": jnp.int32,
+        "int64": jnp.int64,
+        "float16": jnp.float16,
+        "bfloat16": jnp.bfloat16,
+        "float32": jnp.float32,
+        "float64": jnp.float64,
+        "bool": jnp.bool_,
+    }
+)
 
 
 def broadcast_to_highest(
@@ -80,7 +78,7 @@ def robust_power_helper(
     input1: jax.Array, input2: jax.Array, threshold: jax.Array
 ) -> jax.Array:
     def cond_fun(cond: jax.Array, input1: jax.Array, input2: jax.Array) -> jax.Array:
-        return jax.lax.cond(
+        return jax.lax.cond(  # type: ignore
             cond,
             robust_power_under_threshold,
             robust_power_above_threshold,
@@ -286,7 +284,7 @@ def polynomial_features_helper(x: jax.Array, y: jax.Array) -> jax.Array:
     )
 
 
-def get_available_devices():
+def get_available_devices() -> list[str]:
     backends: set[str] = set(jax._src.xla_bridge.backends()) - set(["interpreter"])
     devices = [
         f"{backend.replace('METAL','mps')}:{idx}"

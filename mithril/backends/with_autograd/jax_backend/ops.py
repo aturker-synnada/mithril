@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 from collections.abc import Callable, Iterator, Sequence
 from functools import partial
 from itertools import combinations_with_replacement
-from typing import Any
 
 import jax
 import jax.numpy as jnp
@@ -25,6 +25,7 @@ from jax import nn as functionals
 
 from .... import core
 from ....utils.type_utils import is_tuple_int
+from ....utils.utils import find_dominant_type
 from ...utils import NestedFloatOrIntOrBoolList
 from ..common_primitives import (
     add,
@@ -76,11 +77,9 @@ from .utils import (
     calculate_binary_class_weight,
     calculate_cross_entropy_class_weights,
     calculate_tpr_fpr,
+    dtype_map,
     find_optimal_sigmas,
     get_device,
-    get_type,
-    handle_data_dtype,
-    handle_data_precision,
     log_sigmoid,
     log_softmax,
     many_to_one_inference_helper,
@@ -109,6 +108,7 @@ __all__ = [
     "cos",
     "tanh",
     "relu",
+    "cast",
     "leaky_relu",
     "sigmoid",
     "softplus",
@@ -424,7 +424,7 @@ def conv2d(
     stride: tuple[int, int] = (1, 1),
     padding: tuple[int, int] | tuple[tuple[int, int], tuple[int, int]] = (1, 1),
     dilation: tuple[int, int] = (1, 1),
-):
+) -> jax.Array:
     _padding_normalized: tuple[tuple[int, int], tuple[int, int]]
     if is_tuple_int(padding):
         _padding_normalized = ((padding[0], padding[0]), (padding[1], padding[1]))
@@ -451,7 +451,7 @@ def conv2d_bias(
     stride: tuple[int, int] = (1, 1),
     padding: tuple[int, int] | tuple[tuple[int, int], tuple[int, int]] = (1, 1),
     dilation: tuple[int, int] = (1, 1),
-):
+) -> jax.Array:
     return (
         conv2d(
             input=input,
@@ -559,7 +559,7 @@ def scaled_dot_product_attention(
     dropout_p: float = 0.0,
     is_causal: bool = False,
     scale: float | int | None = None,
-):
+) -> jax.Array:
     if dropout_p != 0.0:
         raise RuntimeError(
             "Currently Jax scaled_dot_product_attention only support dropout_p 0"
@@ -632,7 +632,7 @@ def cross_entropy(
                 f"Cross entropy got unexpected type for target '{target.dtype}'."
             )
 
-        return (
+        return (  # type: ignore
             -log(jnp.take_along_axis(input, target[:, None], axis=1)[:, 0])
             * _weights[target]
         )
@@ -762,20 +762,6 @@ def kl_divergence(input: jax.Array, target: jax.Array, cutoff: jax.Array) -> jax
     return target * (robust_log(target, cutoff) - robust_log(input, cutoff))
 
 
-def eye(N: int, M: int | None, *, device: str, precision: int) -> jax.Array:
-    with jax.default_device(get_device(device)):
-        return handle_data_precision(jnp.eye(N, M), precision)
-
-
-def ones_with_zero_diag(
-    N: int, M: int | None, device: str, precision: int
-) -> jax.Array:
-    output = jnp.ones(N) - jnp.eye(N) if M is None else jnp.ones((N, M)) - jnp.eye(N, M)
-
-    with jax.default_device(get_device(device)):
-        return handle_data_precision(output, precision)
-
-
 def transposed_diag(input: jax.Array) -> jax.Array:
     return jnp.diag(input)[:, None]
 
@@ -855,20 +841,79 @@ def matrix_concat(input1: jax.Array, input2: jax.Array) -> jax.Array:
     return jnp.concatenate((input1, input2), axis=input1.ndim - 1)
 
 
+### Array creation ops ###
+
+
 def to_tensor(
-    input: NestedFloatOrIntOrBoolList, device: str, precision: int
+    input: NestedFloatOrIntOrBoolList,
+    *,
+    dtype: jnp.dtype | None = None,
+    device: str,
+    default_dtype: str,
 ) -> jax.Array:
+    dtype_str = default_dtype if dtype is None else dtype_map.inverse[dtype]
+
+    dominant_type = find_dominant_type(input)
+    _dtype = dominant_type.__name__
+
+    if _dtype != "bool":
+        _dtype += str(re.findall(r"\d+", dtype_str)[-1])
+
     with jax.default_device(get_device(device)):
-        return jnp.array(input, dtype=get_type(input, precision))
+        return jnp.array(input, dtype=dtype_map[_dtype])
+
+
+def eye(
+    N: int,
+    M: int | None,
+    *,
+    dtype: jnp.dtype | None = None,
+    device: str,
+    default_dtype: str,
+) -> jax.Array:
+    dtype = dtype_map[default_dtype] if dtype is None else dtype
+    with jax.default_device(get_device(device)):
+        return jnp.eye(N, M, dtype=dtype)
+
+
+def ones_with_zero_diag(
+    N: int,
+    M: int | None,
+    *,
+    dtype: jnp.dtype | None = None,
+    device: str,
+    default_dtype: str,
+) -> jax.Array:
+    dtype = dtype_map[default_dtype] if dtype is None else dtype
+
+    with jax.default_device(get_device(device)):
+        return (
+            jnp.ones(N, dtype=dtype) - jnp.eye(N, dtype=dtype)
+            if M is None
+            else jnp.ones((N, M), dtype=dtype) - jnp.eye(N, M, dtype=dtype)
+        )
+
+
+def arange(
+    start: int | float,
+    stop: int | float,
+    step: int | float,
+    *,
+    dtype: jnp.dtype | None = None,
+    device: str,
+    default_dtype: str,
+) -> jax.Array:
+    _dtype = default_dtype if dtype is None else dtype_map.inverse[dtype]
+
+    if len([item for item in [start, stop, step] if isinstance(item, float)]) == 0:
+        _dtype = _dtype.replace("float", "int").replace("bfloat", "int")
+
+    with jax.default_device(get_device(device)):
+        return jnp.arange(start, stop, step, dtype=dtype_map[_dtype])
 
 
 def tensor_to_list(input: jax.Array) -> NestedFloatOrIntOrBoolList:
     return input.tolist()
-
-
-def arange(*args: Any, device: str, precision: int) -> jax.Array:
-    with jax.default_device(get_device(device)):
-        return handle_data_precision(jnp.arange(*args), precision)
 
 
 def where(cond: jax.Array, input1: jax.Array, input2: jax.Array) -> jax.Array:
@@ -988,8 +1033,8 @@ def nan_to_num(
     return jnp.nan_to_num(input, nan=nan, posinf=posinf, neginf=neginf)  # type: ignore
 
 
-def astype(input: jax.Array, dtype: core.Dtype | int) -> jax.Array:
-    return handle_data_dtype(input, dtype)
+def cast(input: jax.Array, dtype: jnp.dtype) -> jax.Array:
+    return input.astype(dtype)
 
 
 def dtype(input: jax.Array) -> core.Dtype:
@@ -1008,10 +1053,20 @@ def pad(input: jax.Array, pad_width: tuple[tuple[int, int], ...]):
     return jax.numpy.pad(input, pad_width)
 
 
-def randn(shape: tuple[int, ...], key: int, device: str, precision: int) -> jax.Array:
+def randn(
+    shape: tuple[int, ...],
+    key: int,
+    *,
+    dtype: str | None = None,
+    device: str,
+    default_dtype: str,
+) -> jax.Array:
     _key = jax.random.PRNGKey(key)
+    if dtype is None:
+        dtype = default_dtype
+
     with jax.default_device(get_device(device)):
-        return handle_data_precision(jax.random.normal(_key, shape), precision)
+        return jax.random.normal(_key, shape, dtype=dtype_map[dtype])
 
 
 def zeros_like(input: jax.Array):
