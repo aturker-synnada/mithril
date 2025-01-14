@@ -26,7 +26,6 @@ from mithril.models import (
     Pad,
     Randn,
     Reshape,
-    ToTensor,
     ScaledDotProduct,
     SiLU,
     Subtract,
@@ -89,7 +88,6 @@ def attn_block(n_channels: int, name: str | None = None):
     value = block.value  # type: ignore[attr-defined]
 
     shape = query.shape  # type: ignore[attr-defined]
-
 
     query = query.transpose((0, 2, 3, 1)).reshape((shape[0], 1, -1, shape[1]))
     key = key.transpose((0, 2, 3, 1)).reshape((shape[0], 1, -1, shape[1]))

@@ -26,17 +26,19 @@ from ...utils import DtypeSubTypes
 
 ArrayType = np.ndarray
 
-dtype_map:  BiMap[str, Any] = BiMap({
-    "uint8": np.uint8,
-    "int8": np.int8,
-    "int16": np.int16,
-    "int32": np.int32,
-    "int64": np.int64,
-    "float16": np.float16,
-    "float32": np.float32,
-    "float64": np.float64,
-    "bool": np.bool_,
-})
+dtype_map: BiMap[str, Any] = BiMap(
+    {
+        "uint8": np.uint8,
+        "int8": np.int8,
+        "int16": np.int16,
+        "int32": np.int32,
+        "int64": np.int64,
+        "float16": np.float16,
+        "float32": np.float32,
+        "float64": np.float64,
+        "bool": np.bool_,
+    }
+)
 
 CacheType = dict[str, Any]
 

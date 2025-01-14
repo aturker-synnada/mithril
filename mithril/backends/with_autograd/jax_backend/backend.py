@@ -681,5 +681,3 @@ class JaxBackend(ParallelBackend[jax.numpy.ndarray]):
             return self.prng_key
         return jax.random.PRNGKey(key)
         return getattr(self, self._dtype.name)
-
-

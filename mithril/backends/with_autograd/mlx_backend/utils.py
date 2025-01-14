@@ -29,21 +29,19 @@ from ...utils import DtypeSubTypes
 ArrayType = mx.array
 
 
-dtype_map: BiMap[str, mx.Dtype] = BiMap({
-    "uint8": mx.uint8,
-    "int8": mx.int8,
-    "int16": mx.int16,
-    "short": mx.int16,
-    "int32": mx.int32,
-    "int": mx.int32,
-    "int64": mx.int64,
-    "long": mx.int64,
-    "float16": mx.float16,
-    "bfloat16": mx.bfloat16,
-    "float32": mx.float32,
-    "float": mx.float32,
-    "bool": mx.bool_,  # type: ignore
-})
+dtype_map: BiMap[str, mx.Dtype] = BiMap(
+    {
+        "uint8": mx.uint8,
+        "int8": mx.int8,
+        "int16": mx.int16,
+        "int32": mx.int32,
+        "int64": mx.int64,
+        "float16": mx.float16,
+        "bfloat16": mx.bfloat16,
+        "float32": mx.float32,
+        "bool": mx.bool_,  # type: ignore
+    }
+)
 
 
 def get_available_devices() -> list[str]:

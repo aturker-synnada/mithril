@@ -681,5 +681,6 @@ class MlxBackend(Backend[mx.array]):
             return self.prng_key
         else:
             return mx.random.key(key)
+
     def _get_default_subtype(self):
         return DtypeSubTypes[self._dtype.name].value
