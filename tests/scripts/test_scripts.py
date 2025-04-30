@@ -3000,6 +3000,28 @@ def test_replace_with_primitive_5():
     assert expected_ignore_keys == comp_model.discarded_keys
 
 
+def test_replace_with_jax_linear():
+    model = Model()
+    model |= Linear(8, use_bias=False).connect(
+        input="input", output=IOKey(name="output")
+    )
+
+    pm = ml.compile(model, backend=ml.JaxBackend())
+    ops = list(pm.flat_graph.model_table.keys())
+    assert len(ops) == 1
+    assert ops[0].formula_key == "linear"
+
+
+def test_replace_with_jax_linear_bias():
+    model = Model()
+    model |= Linear(8).connect(input="input", output=IOKey(name="output"))
+
+    pm = ml.compile(model, backend=ml.JaxBackend())
+    ops = list(pm.flat_graph.model_table.keys())
+    assert len(ops) == 1
+    assert ops[0].formula_key == "linear_bias"
+
+
 def test_generate_gradients():
     backend = NumpyBackend()
     model = Model()
