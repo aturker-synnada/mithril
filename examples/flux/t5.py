@@ -184,7 +184,7 @@ def load_t5_encoder(name: str, max_len: int = 256) -> ml.models.PhysicalModel:
         config = json.load(f)
 
     t5 = t5_encode(config, name="encoder")
-    t5.set_shapes(input=[1, max_len])
+    t5.set_shapes(input=[2, max_len])
 
     return t5
 

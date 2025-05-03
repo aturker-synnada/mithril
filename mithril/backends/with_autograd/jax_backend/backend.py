@@ -72,6 +72,7 @@ class JaxBackend(ParallelBackend[jax.numpy.ndarray]):
             self._create_parallel(device_mesh=device_mesh)
 
         os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = str(pre_allocate).lower()
+        os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform"
 
         self.array_creation_funcs = ops.array_creation_funcs
         self.op_function_dict = ops.primitive_func_dict

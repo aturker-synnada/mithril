@@ -12,6 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import jax
+import jax.profiler
+
+jax.config.update("jax_compilation_cache_dir", "./jax_cache")
+jax.config.update("jax_persistent_cache_min_entry_size_bytes", -1)
+jax.config.update("jax_persistent_cache_min_compile_time_secs", 0)
+jax.config.update("jax_persistent_cache_enable_xla_caches", "xla_gpu_per_fusion_autotune_cache_dir")
+
 
 import os
 import time
@@ -51,12 +59,12 @@ class SamplingOptions:
 
 
 def run(
-    model_name: str = "flux-dev",
-    backend_name: str = "torch",
+    model_name: str = "flux-lite",
+    backend_name: str = "jax",
     width: int = 1024,
     height: int = 1024,
     prompt: str = "A girl with green eyes on the a wooden bridge",
-    device: str = "cpu",
+    device: str = "tpu",
     output_dir: str = "temp",
     num_steps: int | None = None,
     guidance: float = 3.5,
@@ -78,8 +86,14 @@ def run(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    prompts = [
+        "A girl with green eyes on the a wooden bridge",
+        "A girl with blue eyes on the a wooden bridge",
+    ]
+
+
     opts = SamplingOptions(
-        prompt=prompt,
+        prompt=prompts,
         width=width,
         height=height,
         num_steps=num_steps,
@@ -109,7 +123,7 @@ def run(
     clip_weights = download_clip_encoder_weights(backend, name=model_name)
     clip_lm.name = "clip"
 
-    prepare_logical(flux_pipeline, t5_lm, clip_lm, 1, opts.width, opts.height)
+    prepare_logical(flux_pipeline, t5_lm, clip_lm, 2, opts.width, opts.height)
 
     decoder_lm, decoder_params = load_decoder(model_name, backend=backend)
     decoder_lm.name = "decoder"
@@ -139,7 +153,7 @@ def run(
     for idx, (t_curr, t_prev) in tqdm(
         enumerate(zip(timesteps[:-1], timesteps[1:], strict=False))
     ):
-        flux_pipeline |= Ones(shape=(1,)).connect(output=f"t_vec{idx}")
+        flux_pipeline |= Ones(shape=(2,)).connect(output=f"t_vec{idx}")
         t_vec = getattr(flux_pipeline, f"t_vec{idx}")
         t_vec *= t_curr
 
@@ -170,9 +184,11 @@ def run(
 
         img = img + (t_prev - t_curr) * getattr(flux_pipeline, flow_out)
 
-    unpacked_img = unpack_logical(flux_pipeline, img, opts.height, opts.width)
 
-    flux_pipeline |= decoder_lm(input=unpacked_img, output="decoded")
+
+    unpacked_img = unpack_logical(flux_pipeline, img, opts.height, opts.width, 2)
+
+    flux_pipeline |= decoder_lm.connect(input=unpacked_img, output="decoded")
     flux_pipeline |= Transpose(axes=(0, 2, 3, 1)).connect(
         input="decoded", output=IOKey("output")
     )
@@ -185,34 +201,48 @@ def run(
 
     params = {**flow_params, **decoder_params, **t5_params, **clip_params}
 
+
     print("Compiling Pipeline")
     s_time = time.perf_counter()
     denoise_pm = ml.compile(
-        flux_pipeline, backend, inference=True, jit=True, use_short_namings=False
+        flux_pipeline, backend, inference=True, jit=False, use_short_namings=False, file_path="flux.py"
     )
     e_time = time.perf_counter()
     print(f"Time taken for compilation: {e_time - s_time} seconds")
+
+    # jax.profiler.save_device_memory_profile("memory.prof")
 
     clip_inp = clip_tokenizer.encode(opts.prompt)
     t5_inp = t5_tokenizer.encode(opts.prompt)
 
     inp = {"clip_tokens": clip_inp, "t5_tokens": t5_inp}
+    state = denoise_pm.initial_state_dict
 
     # Warmup
-    for _ in tqdm(range(5)):
-        x = denoise_pm.evaluate(params, inp)["output"]
+    for _ in tqdm(range(2)):
+        x,_ = denoise_pm.evaluate(params, inp, state=state)
+        x["output"].block_until_ready()
 
     # Actual inference
     s_time = time.perf_counter()
-    for _ in tqdm(range(10)):
-        x = denoise_pm.evaluate(params, inp)["output"]
+
+    for _ in tqdm(range(3)):
+        x, _= denoise_pm.evaluate(params, inp, state=state)
+        x["output"].block_until_ready()
+        print(x["output"].shape)
+
     e_time = time.perf_counter()
     print(f"Time taken: {e_time - s_time} seconds")
 
     img_pil = Image.fromarray(
-        np.array(127.5 * (x.float().cpu()[0] + 1.0)).clip(0, 255).astype(np.uint8)  # type: ignore
+        np.array(127.5 * (np.array(x["output"]).astype(np.float32)[0] + 1.0)).clip(0, 255).astype(np.uint8)  # type: ignore
     )
-    img_pil.save("img.png")
+    img_pil.save("img_1.png")
+
+    img_pil = Image.fromarray(
+        np.array(127.5 * (np.array(x["output"]).astype(np.float32)[1] + 1.0)).clip(0, 255).astype(np.uint8)  # type: ignore
+    )
+    img_pil.save("img_2.png")
 
 
 if __name__ == "__main__":

@@ -42,17 +42,17 @@ class FluxParams:
     guidance_embed: bool
 
 
-def flux(params: FluxParams):
+def flux(params: FluxParams, n_samples: int = 1):
     flux = Model()
 
-    img = IOKey("img", shape=[1, 4096, 64])
-    txt = IOKey("txt", shape=[1, 512, 4096])
+    img = IOKey("img", shape=[n_samples, 4096, 64])
+    txt = IOKey("txt", shape=[n_samples, 512, 4096])
 
-    img_ids = IOKey("img_ids", shape=[1, 4096, 3])
-    txt_ids = IOKey("txt_ids", shape=[1, 512, 3])
+    img_ids = IOKey("img_ids", shape=[n_samples, 4096, 3])
+    txt_ids = IOKey("txt_ids", shape=[n_samples, 512, 3])
 
-    timesteps = IOKey("timesteps", shape=[1])
-    y = IOKey("y", shape=[1, 768])
+    timesteps = IOKey("timesteps", shape=[n_samples])
+    y = IOKey("y", shape=[n_samples, 768])
 
     flux |= timestep_embedding(dim=256).connect(input=timesteps, output="time_embed")
     flux |= mlp_embedder(params.hidden_size, name="time_in").connect(

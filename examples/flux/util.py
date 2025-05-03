@@ -26,6 +26,8 @@ from imwatermark import WatermarkEncoder
 from model import FluxParams, flux
 from safetensors import safe_open
 
+import jax.profiler
+
 import mithril as ml
 
 
@@ -57,7 +59,7 @@ def convert_to_ml_weights(
     ml_param_shapes: Mapping,
     torch_state_dict: dict,
     backend: ml.Backend,
-    dtype: ml.types.Dtype,
+    dtype: ml.types.Dtype | None = None,
 ):
     params = {}
 
@@ -68,20 +70,15 @@ def convert_to_ml_weights(
             continue
 
         param_shape = ml_param_shapes[ml_key]
-        if torch_state_dict[torch_key].shape != param_shape:
-            params[ml_key] = backend.array(
-                backend.reshape(torch_state_dict[torch_key], param_shape),
-                dtype=dtype,
-            )
-        else:
-            params[ml_key] = backend.array(
-                backend.reshape(torch_state_dict[torch_key], param_shape),
-                dtype=dtype,
-            )
+        params[ml_key] = backend.reshape(torch_state_dict[torch_key], param_shape)
+
+        if dtype is not None:
+            params[ml_key] = backend.array(params[ml_key], dtype=dtype)
 
         del torch_state_dict[torch_key]
 
     return params
+
 
 
 configs = {
@@ -98,6 +95,38 @@ configs = {
             mlp_ratio=4.0,
             num_heads=24,
             depth=19,
+            depth_single_blocks=38,
+            axes_dim=[16, 56, 56],
+            theta=10_000,
+            qkv_bias=True,
+            guidance_embed=True,
+        ),
+        ae_path=os.getenv("AE"),
+        ae_params=AutoEncoderParams(
+            resolution=256,
+            in_channels=3,
+            ch=128,
+            out_ch=3,
+            ch_mult=[1, 2, 4, 4],
+            num_res_blocks=2,
+            z_channels=16,
+            scale_factor=0.3611,
+            shift_factor=0.1159,
+        ),
+    ),
+    "flux-lite": ModelSpec(
+        repo_id="Freepik/flux.1-lite-8B-alpha",
+        repo_flow="flux.1-lite-8B-alpha.safetensors",
+        repo_ae="vae/diffusion_pytorch_model.safetensors",
+        ckpt_path=os.getenv("FLUX_LITE"),
+        params=FluxParams(
+            in_channels=64,
+            vec_in_dim=768,
+            context_in_dim=4096,
+            hidden_size=3072,
+            mlp_ratio=4.0,
+            num_heads=24,
+            depth=8,
             depth_single_blocks=38,
             axes_dim=[16, 56, 56],
             theta=10_000,
@@ -164,7 +193,7 @@ def load_flow_model(name: str, backend: ml.Backend, hf_download: bool = True):
     ):
         ckpt_path = hf_hub_download(r_id, r_flow)
 
-    flux_lm = flux(configs[name].params)
+    flux_lm = flux(configs[name].params, 2)
     flux_pm = ml.compile(
         flux_lm,
         backend,
@@ -177,7 +206,7 @@ def load_flow_model(name: str, backend: ml.Backend, hf_download: bool = True):
     result = {}
     for k in sd.keys():  # type: ignore #noqa SIM118
         result[k] = sd.get_tensor(k)  # type: ignore
-    params = convert_to_ml_weights(flux_pm.shapes, result, backend, backend._dtype)
+    params = convert_to_ml_weights(flux_pm.shapes, result, backend)
 
     return flux_lm, params
 
@@ -192,12 +221,12 @@ def load_decoder(
         and (r_ae := configs[name].repo_ae) is not None
         and hf_download
     ):
-        ckpt_path = hf_hub_download(r_id, r_ae)
+        ckpt_path = hf_hub_download('black-forest-labs/FLUX.1-dev', 'ae.safetensors')
 
     # Loading the autoencoder
     print("Init AE")
     decoder_lm = decode(configs[name].ae_params)
-    decoder_lm.set_shapes(input=[1, 16, 128, 128])
+    decoder_lm.set_shapes(input=[2, 16, 128, 128])
 
     decoder_pm = ml.compile(
         decoder_lm,
@@ -205,7 +234,7 @@ def load_decoder(
         inference=True,
         jit=False,
         data_keys=["input"],
-        shapes={"input": [1, 16, 128, 128]},
+        shapes={"input": [2, 16, 128, 128]},
         use_short_namings=False,
     )
 

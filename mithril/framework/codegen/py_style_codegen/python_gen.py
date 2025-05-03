@@ -328,9 +328,9 @@ class PythonCodeGen(CodeGen[Any], Generic[DataType]):
         assigned_output_keys: set[str] = set()
 
         determined_keys = cached_data_keys | unused_keys | discarded_keys
-
+        topo_order = list(self.pm.flat_graph.topological_order)
         # Iterate over ops in topological order to add their formula.
-        for output_key in self.pm.flat_graph.topological_order:
+        for idx, output_key in enumerate(topo_order):
             # Get operator details
             op, g_input_keys, l_input_keys = self.get_op_details(output_key)
             formula_key = op.formula_key
@@ -358,6 +358,7 @@ class PythonCodeGen(CodeGen[Any], Generic[DataType]):
             used_keys |= _used_keys
             used_keys.add(output_key)
             assigned_output_keys.add(output_key)
+            function_body.append(ast.Expr(value=ast.Call(func=ast.Name(id="print", ctx=ast.Load()), args=[ast.Constant(f"{idx}/{len(topo_order)}"), ast.Constant(value=output_key)], keywords=[])))
             function_body.append(primitive_call)
 
             # Add deletion logic for intermediate variables

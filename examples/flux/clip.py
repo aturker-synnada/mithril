@@ -173,7 +173,7 @@ def load_clip_encoder(
         config = json.load(f)
 
     clip_model = clip_text_model(config)
-    clip_model.set_shapes(input=[1, config["max_position_embeddings"]])
+    clip_model.set_shapes(input=[2, config["max_position_embeddings"]])
 
     return clip_model
 

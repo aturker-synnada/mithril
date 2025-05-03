@@ -206,7 +206,7 @@ def rearrange(num_heads: int, *, name: str | None = None):
     return block
 
 
-def double_stream_block(
+def  double_stream_block(
     hidden_size: int,
     num_heads: int,
     mlp_ratio: float,
@@ -214,10 +214,10 @@ def double_stream_block(
     *,
     name: str | None = None,
 ):
-    img = IOKey("img", shape=[1, 4096, 3072])
-    txt = IOKey("txt", shape=(1, 512, 3072))
-    vec = IOKey("vec", shape=(1, 3072))
-    pe = IOKey("pe", shape=(1, 1, 4608, 64, 2, 2))
+    img = IOKey("img", shape=[2, 4096, 3072])
+    txt = IOKey("txt", shape=(2, 512, 3072))
+    vec = IOKey("vec", shape=(2, 3072))
+    pe = IOKey("pe", shape=(2, 1, 4608, 64, 2, 2))
 
     mlp_hidden_dim = int(hidden_size * mlp_ratio)
 

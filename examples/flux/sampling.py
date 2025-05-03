@@ -117,9 +117,9 @@ def get_lin_function(
 
 
 def unpack_logical(
-    model: ml.models.Model, input: ml.models.Connection, height: int, width: int
+    model: ml.models.Model, input: ml.models.Connection, height: int, width: int, n_samples: int = 1
 ) -> ml.models.Model:
-    b = 1
+    b = n_samples
     h = math.ceil(height / 16)
     w = math.ceil(width / 16)
     ph = 2
