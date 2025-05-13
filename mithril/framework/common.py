@@ -1156,7 +1156,7 @@ class Tensor(Generic[TypeVarTensorType]):
             assert not (is_tensor_type(new_type) or isinstance(new_type, GenericAlias))
             self.type = new_type
             # Update differentiability
-            if find_intersection_type(self.type, int | bool):
+            if find_intersection_type(self.type, float) is None:
                 self.differentiable = False
             # Add all referee edges into the updates.
             for edge in self.referees:
