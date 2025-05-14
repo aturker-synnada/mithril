@@ -406,7 +406,7 @@ class MlxBackend(Backend[mx.array]):
             return -mx.sort(-mx.topk(input, k))
         else:
             values = -mx.sort(-mx.topk(input, k))
-            flat_indices = mx.argsort(-input)[:k]
+            flat_indices = mx.argsort(-input)[..., :k]
 
             return values, flat_indices
 

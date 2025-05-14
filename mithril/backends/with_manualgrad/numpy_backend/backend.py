@@ -363,17 +363,29 @@ class NumpyBackend(Backend[np.ndarray[Any, Any]]):
     def topk(
         self, input: np.ndarray[Any, Any], k: int, indices: bool = False
     ) -> tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]] | np.ndarray[Any, Any]:
-        flat = input.ravel()
-        top_k_flat_idx = np.argpartition(flat, -k)[-k:]
-        argsort = np.argsort(-flat[top_k_flat_idx])
+        top_k_index = np.argsort(-input)[..., :k]
 
-        top_k_flat_idx = top_k_flat_idx[argsort]
-        values = flat[top_k_flat_idx]
+        # Get values using indexing
+        # Create indexing tuples for gathering values
+        if input.ndim == 1:
+            values = input[top_k_index]
+        else:
+            gather_index = []
+            for i in range(input.ndim):
+                if i == input.ndim - 1:
+                    gather_index.append(top_k_index)
+                else:
+                    shape = [1] * input.ndim
+                    shape[i] = input.shape[i]
+                    idx = np.arange(input.shape[i]).reshape(shape)
+                    gather_index.append(np.broadcast_to(idx, top_k_index.shape))
+
+            values = input[tuple(gather_index)]
+
         if not indices:
             return values
         else:
-            flat_idx = np.unravel_index(top_k_flat_idx, input.shape)[0]
-            return values, flat_idx
+            return values, top_k_index
 
     def multinomial(
         self,
