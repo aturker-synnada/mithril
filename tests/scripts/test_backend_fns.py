@@ -1958,7 +1958,7 @@ class TestTopK:
         )
 
         # Test with indices false
-        fn_args: list = [input, 3, False]
+        fn_args = [input, 3, False]
         assert_backend_results_equal(
             backend,
             fn,
@@ -1999,7 +1999,7 @@ class TestTopK:
         )
 
         # Test with indices false
-        fn_args: list = [input, 3, False]
+        fn_args = [input, 3, False]
         assert_backend_results_equal(
             backend,
             fn,
