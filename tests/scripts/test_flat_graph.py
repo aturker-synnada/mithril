@@ -122,6 +122,7 @@ def test_infer_static():
     model = Model()
     model |= Relu().connect(input="input", output=ml.IOKey(name="output"))
 
+    # Infer static is enabled by default
     pm = ml.compile(
         model=model,
         backend=backend,
@@ -133,14 +134,28 @@ def test_infer_static():
     assert pm.flat_graph.all_target_keys == set()
     assert list(pm.flat_graph.topological_order) == []
 
+    # Infer static is disabled
+    pm = ml.compile(
+        model=model,
+        backend=backend,
+        constant_keys={"input": backend.randn(5, 5)},
+        inference=True,
+        enable_infer_static=False,
+    )
 
-def test_infer_static_2():
+    assert pm.flat_graph.all_source_keys == {"input"}
+    assert pm.flat_graph.all_target_keys == {"output"}
+    assert list(pm.flat_graph.topological_order) == ["output"]
+
+
+def test_infer_static_multiple_ops():
     # Infer only one step, output of infered primitives needed
     backend = ml.TorchBackend(dtype=ml.float32)
     model = Model()
-    model |= Relu().connect(input="input1", output="relu_out")
+    model |= (relu := Relu()).connect(input="input1", output="relu_out")
     model |= (add := Add()).connect("relu_out", "input2", ml.IOKey(name="output"))
 
+    # Infer static is enabled by default
     pm = ml.compile(
         model=model,
         backend=backend,
@@ -155,6 +170,23 @@ def test_infer_static_2():
     assert pm.flat_graph.all_source_keys == {"relu_out", "input2"}
     assert pm.flat_graph.all_target_keys == {"output"}
     assert list(pm.flat_graph.topological_order) == ["output"]
+
+    # Infer static is disabled
+    pm = ml.compile(
+        model=model,
+        backend=backend,
+        constant_keys={"input1": backend.randn(5, 5)},
+        inference=True,
+        enable_infer_static=False,
+    )
+
+    assert (
+        len(pm.flat_graph.topological_order) == 2
+        and add.submodel in pm.flat_graph.all_models
+        and relu.submodel in pm.flat_graph.all_models
+    )
+    assert pm.flat_graph.all_source_keys == {"relu_out", "input2", "input1"}
+    assert pm.flat_graph.all_target_keys == {"output", "relu_out"}
 
 
 def test_infer_static_3():

@@ -54,6 +54,8 @@ def test_data_store_1():
         safe_names=True,
         use_short_namings=True,
         jit=True,
+        enable_infer_static=True,
+        enable_remove_duplicate_ops=True,
     )
     # Set input as static and check data store.
     key = "input"
@@ -84,6 +86,8 @@ def test_data_store_1_numpy():
         safe_names=True,
         use_short_namings=True,
         jit=True,
+        enable_infer_static=True,
+        enable_remove_duplicate_ops=True,
     )
     # Set input as static and check data store.
     key = "input"
@@ -445,6 +449,8 @@ def test_data_store_14():
         safe_names=True,
         use_short_namings=True,
         jit=True,
+        enable_infer_static=True,
+        enable_remove_duplicate_ops=True,
     )
 
     assert pm.flat_graph.data_store.data_values.keys() == {
@@ -482,6 +488,8 @@ def test_data_store_15():
         safe_names=False,
         use_short_namings=True,
         jit=True,
+        enable_infer_static=True,
+        enable_remove_duplicate_ops=True,
     )
 
     assert pm.flat_graph.data_store.data_values.keys() == {
@@ -521,6 +529,8 @@ def test_data_store_16():
         safe_names=True,
         use_short_namings=True,
         jit=True,
+        enable_infer_static=True,
+        enable_remove_duplicate_ops=True,
     )
 
     assert pm.flat_graph.data_store.data_values.keys() == set()
@@ -559,6 +569,8 @@ def test_data_store_17():
         safe_names=True,
         use_short_namings=True,
         jit=True,
+        enable_infer_static=True,
+        enable_remove_duplicate_ops=True,
     )
 
     assert pm.flat_graph.data_store.data_values.keys() == set()
@@ -598,6 +610,8 @@ def test_data_store_18():
         safe_names=True,
         use_short_namings=True,
         jit=True,
+        enable_infer_static=True,
+        enable_remove_duplicate_ops=True,
     )
 
     assert pm.flat_graph.data_store.data_values.keys() == {"tensor_out"}

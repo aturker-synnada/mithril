@@ -2108,6 +2108,7 @@ def test_prune_1():
     m |= Buffer().connect(input=add4.output, output="out_4")
     m.expose_keys("out_1", "out_2", "out_3", "out_4")
 
+    # Remove duplicate ops is enabled by default
     compiled_model = compile(m, NumpyBackend(), inference=True)
     expected_connections: dict[str, list[str | set[str]]] = {
         "out_1": ["add", {"input", "input2", "out_1_cache"}],
@@ -2120,6 +2121,34 @@ def test_prune_1():
         "out_2": "output_0",
         "out_3": "output_1",
         "out_4": "output_0",
+    }
+
+    assert_connections(compiled_model, expected_connections)
+    assert compiled_model.flat_graph.output_dict == expected_output_dict
+
+    # Remove duplicate ops is disabled
+    compiled_model = ml.compile(
+        m,
+        NumpyBackend(),
+        inference=True,
+        enable_remove_duplicate_ops=False,
+    )
+
+    expected_connections = {
+        "out_1": ["add", {"input", "input2", "out_1_cache"}],
+        "output_0": ["add", {"out_1", "input3", "output_0_cache"}],
+        "output_1": ["add", {"out_1", "input4", "output_1_cache"}],
+        "output_2": ["add", {"out_1", "input3", "output_2_cache"}],
+        "out_4": ["buffer", {"output_2", "out_4_cache"}],
+        "out_3": ["buffer", {"output_1", "out_3_cache"}],
+        "out_2": ["buffer", {"output_0", "out_2_cache"}],
+    }
+
+    expected_output_dict = {
+        "out_1": "out_1",
+        "out_2": "out_2",
+        "out_3": "out_3",
+        "out_4": "out_4",
     }
 
     assert_connections(compiled_model, expected_connections)
@@ -2229,6 +2258,31 @@ def test_prune_4():
 
     assert_connections(compiled_model, expected_connections)
     assert compiled_model.flat_graph.output_dict == expected_output_dict
+
+    # Remove duplicate ops is disabled
+    compiled_model = ml.compile(
+        m,
+        NumpyBackend(),
+        inference=True,
+        enable_remove_duplicate_ops=False,
+    )
+
+    expected_connections = {
+        "output_0": ["add", {"input", "input2", "output_0_cache"}],
+        "output_1": ["add", {"input", "input2", "output_1_cache"}],
+        "output_2": [
+            "add",
+            {"output_0", "output_2_cache"},
+        ],
+        "output_3": ["add", {"output_1", "output_3_cache"}],
+        "output": ["add", {"output_2", "output_3", "output_cache"}],
+    }
+
+    expected_output_dict = {
+        "output": "output",
+    }
+
+    assert_connections(compiled_model, expected_connections)
 
 
 def test_prune_5():

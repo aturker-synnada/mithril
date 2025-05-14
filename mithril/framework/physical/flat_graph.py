@@ -677,6 +677,7 @@ class FlatGraph(GenericDataType[DataType]):
         updates = Updates()
         state_inputs = {_key.in_key for _key in self.state_keys}
         state_outputs = {_key.out_key for _key in self.state_keys}
+
         while queue:
             key = queue.pop()
             if (

@@ -97,6 +97,8 @@ class PhysicalModel(GenericDataType[DataType]):
         safe_names: bool,
         use_short_namings: bool,
         jit: bool,
+        enable_infer_static: bool,
+        enable_remove_duplicate_ops: bool,
     ) -> None:
         if len(model.conns.output_keys) == 0 and len(model.conns.couts) == 0:
             raise KeyError("Models with no output keys can not be compiled.")
@@ -117,6 +119,8 @@ class PhysicalModel(GenericDataType[DataType]):
         self._input_keys: set[str] = {
             self.external_key_mapping[key] for key in model.input_keys
         }
+        self.enable_infer_static: bool = enable_infer_static
+        self.enable_remove_duplicate_ops: bool = enable_remove_duplicate_ops
 
         # Add canonical output mapping to key_mappings if necessary
         # TODO: This is a temporary solution, a better way will be implemented
@@ -680,7 +684,8 @@ class PhysicalModel(GenericDataType[DataType]):
 
         # Infer and store all static keys using user provided constant keys and
         # the non-tensor constants defined in logical model.
-        self.flat_graph.infer_static_keys()
+        if self.enable_infer_static:
+            self.flat_graph.infer_static_keys()
 
         # Check if there exists any unused keys in the provided data_keys.
         # TODO: Consider to remove this check. Same check is done in
@@ -1164,10 +1169,11 @@ class PhysicalModel(GenericDataType[DataType]):
 
     def traverse_graph(self) -> None:
         for op in self.flat_graph.all_models:
-            # Prune the operation if it is not needed
-            self.flat_graph.prune_duplicate_operation(
-                op, self.data, self.flat_graph.cached_data
-            )
+            if self.enable_remove_duplicate_ops:
+                # Prune the operation if it is not needed
+                self.flat_graph.prune_duplicate_operation(
+                    op, self.data, self.flat_graph.cached_data
+                )
 
             if self.jit:
                 # Check if the operation supports JIT compilation

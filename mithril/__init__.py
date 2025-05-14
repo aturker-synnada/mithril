@@ -119,6 +119,8 @@ def compile(
     safe_shapes: builtins.bool = True,
     safe_names: builtins.bool = True,
     use_short_namings: builtins.bool = True,
+    enable_infer_static: builtins.bool = True,
+    enable_remove_duplicate_ops: builtins.bool = True,
 ) -> PhysicalModel[DataType]:
     """Compilation of Logical Model.
 
@@ -159,6 +161,8 @@ def compile(
         safe_shapes=safe_shapes,
         safe_names=safe_names,
         use_short_namings=use_short_namings,
+        enable_infer_static=enable_infer_static,
+        enable_remove_duplicate_ops=enable_remove_duplicate_ops,
         jit=jit,
     )
 
