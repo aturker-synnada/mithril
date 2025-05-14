@@ -492,8 +492,13 @@ class JaxBackend(ParallelBackend[jax.numpy.ndarray]):
     def where(self, cond: jax.Array, input1: jax.Array, input2: jax.Array) -> jax.Array:
         return ops.where(cond, input1, input2)
 
-    def topk(self, input: jax.Array, k: int) -> jax.Array:
-        return jax.lax.top_k(input, k)[0]
+    def topk(
+        self, input: jax.Array, k: int, indices: bool = False
+    ) -> jax.Array | tuple[jax.Array, jax.Array]:
+        if indices:
+            return jax.lax.top_k(input, k)
+        else:
+            return jax.lax.top_k(input, k)[0]
 
     def multinomial(
         self,

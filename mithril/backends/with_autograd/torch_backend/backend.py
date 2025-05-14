@@ -546,8 +546,14 @@ class TorchBackend(ParallelBackend[torch.Tensor]):
     ) -> torch.Tensor:
         return ops.where(cond, input1, input2)
 
-    def topk(self, input: torch.Tensor, k: int) -> torch.Tensor:
-        return torch.topk(input, k)[0]  # TODO: Returns different tuple type???
+    def topk(
+        self, input: torch.Tensor, k: int, indices: bool = False
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        if indices:
+            topk_values, topk_indices = torch.topk(input, k)
+            return topk_values, topk_indices
+        else:
+            return torch.topk(input, k)[0]  # TODO: Returns different tuple type???
 
     def multinomial(
         self,

@@ -1933,10 +1933,16 @@ class TestTopK:
         array_fn = array_fns[backendcls]
         backend = backendcls(device=device, dtype=dtype)
         fn = backend.topk
-        input = array_fn([0, 1, 2, 3, 4, 5], device, dtype.name)
-        fn_args: list = [input, 3]
+        input = array_fn([0, 1, 3, 2, 4, 5], device, dtype.name)
+        fn_args: list = [input, 3, True]
         fn_kwargs: dict = {}
-        ref_output = array_fn([5, 4, 3], device, dtype.name)
+        indices_dtype = (
+            "int64" if backendcls.backend_type in ["torch", "numpy"] else "int32"
+        )
+        ref_output = (
+            array_fn([5, 4, 3], device, dtype.name),
+            array_fn([5, 4, 2], device, indices_dtype),
+        )
         assert_backend_results_equal(
             backend,
             fn,

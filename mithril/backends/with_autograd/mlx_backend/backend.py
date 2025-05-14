@@ -399,8 +399,16 @@ class MlxBackend(Backend[mx.array]):
     def where(self, cond: mx.array, input1: mx.array, input2: mx.array) -> mx.array:
         return mx.where(cond, input1, input2)
 
-    def topk(self, input: mx.array, k: int) -> mx.array:
-        return -mx.sort(-mx.topk(input, k))
+    def topk(
+        self, input: mx.array, k: int, indices: bool = False
+    ) -> mx.array | tuple[mx.array, mx.array]:
+        if not indices:
+            return -mx.sort(-mx.topk(input, k))
+        else:
+            values = -mx.sort(-mx.topk(input, k))
+            flat_indices = mx.argsort(-input)[:k]
+
+            return values, flat_indices
 
     def multinomial(
         self,

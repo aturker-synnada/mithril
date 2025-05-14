@@ -360,21 +360,20 @@ class NumpyBackend(Backend[np.ndarray[Any, Any]]):
     ) -> np.ndarray[Any, Any]:
         return ops.where(cond, input1, input2)
 
-    # TODO: Analyze the code's efficiency and refactor it if necessary.
-    # topk_namedtuple = namedtuple('topk_namedtuple', ['values', 'indices'])
-
-    # TODO: Now topk only supports one dimensional tensors,
-    # add multi-dimensional support similar to torch, jax and mlx
-    def topk(self, input: np.ndarray[Any, Any], k: int) -> np.ndarray[Any, Any]:
+    def topk(
+        self, input: np.ndarray[Any, Any], k: int, indices: bool = False
+    ) -> tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]] | np.ndarray[Any, Any]:
         flat = input.ravel()
-        indices = np.argpartition(flat, -k)[-k:]
-        argsort = np.argsort(-flat[indices])
+        top_k_flat_idx = np.argpartition(flat, -k)[-k:]
+        argsort = np.argsort(-flat[top_k_flat_idx])
 
-        indices = indices[argsort]
-        values = flat[indices]
-        leading_dims = len(input.shape) - len(values.shape)
-        values = values.reshape((-1,) * leading_dims + values.shape)
-        return values
+        top_k_flat_idx = top_k_flat_idx[argsort]
+        values = flat[top_k_flat_idx]
+        if not indices:
+            return values
+        else:
+            flat_idx = np.unravel_index(top_k_flat_idx, input.shape)[0]
+            return values, flat_idx
 
     def multinomial(
         self,

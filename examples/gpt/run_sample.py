@@ -144,7 +144,9 @@ def generate(
         if top_k is not None:
             v = model.backend.topk(logits, min(top_k, logits.shape[-1]))  # type: ignore
             logits = model.backend.where(
-                logits < v[:, [-1]], -model.backend.inf, logits
+                logits < v[:, [-1]],  # type: ignore
+                -model.backend.inf,
+                logits,
             )
         # Apply softmax to convert logits to (normalized) probabilities
         probs = model.backend.softmax(logits, dim=-1)

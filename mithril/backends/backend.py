@@ -884,7 +884,9 @@ class Backend(ABC, Generic[DataType]):
     ) -> tuple[DataType, DataType | None, DataType | None]:
         raise NotImplementedError("unique is not implemented!")
 
-    def topk(self, input: DataType, k: int) -> DataType:
+    def topk(
+        self, input: DataType, k: int, indices: bool = False
+    ) -> DataType | tuple[DataType, DataType]:
         raise NotImplementedError("topk is not implemented!")
 
     def where(self, cond: DataType, input1: DataType, input2: DataType) -> DataType:
