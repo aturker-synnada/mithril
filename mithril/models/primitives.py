@@ -1586,13 +1586,16 @@ class PaddingConverter2D(PrimitiveModel):
         self,
         kernel_size: int | tuple[int, int] | ToBeDetermined = TBD,
         input: int
-        | PaddingType
+        | str
         | tuple[int, int]
         | tuple[tuple[int, int], tuple[int, int]]
         | ToBeDetermined = TBD,
         *,
         name: str | None = None,
     ) -> None:
+        if isinstance(input, str):
+            assert input in ["valid", "same"], f"Invalid padding type: {input}!"
+
         super().__init__(
             formula_key="padding_converter_2d",
             name=name,
@@ -1601,7 +1604,7 @@ class PaddingConverter2D(PrimitiveModel):
             ),
             input=BaseKey(
                 type=int
-                | PaddingType
+                | str
                 | tuple[int, int]
                 | tuple[tuple[int, int], tuple[int, int]],
                 value=input,

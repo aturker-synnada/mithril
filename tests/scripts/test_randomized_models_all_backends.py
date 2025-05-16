@@ -15,9 +15,11 @@
 import inspect
 import json
 from copy import deepcopy
+import sys
 
 import numpy as np
 import pytest
+import line_profiler
 
 import mithril as ml
 from mithril import JaxBackend, MlxBackend, NumpyBackend, TorchBackend, compile, models
@@ -215,7 +217,7 @@ def test_randomized(case: str) -> None:
                 backend=init_backend,  # type: ignore
                 trainable_keys=trainble_keys,
                 shapes=shapes,
-                jit=True,
+                jit=False,
                 inference=inference,
             )
 
@@ -256,7 +258,8 @@ def test_randomized(case: str) -> None:
                     else value
                     for key, value in static_inputs[init_key].items()
                 }
-
+            import time
+            s_time = time.time()
             gradients[init_key] = (
                 compiled_model.evaluate(
                     inputs[init_key], output_gradients=output_gradients[init_key]
@@ -264,7 +267,7 @@ def test_randomized(case: str) -> None:
                 if not inference
                 else {}
             )
-
+            e_time = time.time()
             for backend in avaliable_backends:
                 compiled_model = compile(
                     model=model,
@@ -275,6 +278,7 @@ def test_randomized(case: str) -> None:
                     jit=True,
                     inference=inference,
                 )
+                s_time = time.time()
                 outputs[backend.backend_type], gradients[backend.backend_type] = (
                     (
                         compiled_model.evaluate(
@@ -285,6 +289,8 @@ def test_randomized(case: str) -> None:
                     if not inference
                     else (compiled_model.evaluate(inputs[backend.backend_type]), {})
                 )
+                e_time = time.time()
+                print(f"Time taken for {backend.backend_type}: {e_time - s_time} seconds")
 
             numeric_shape_dict: dict[str, tuple[int | None, ...] | tuple[()]] = (
                 {
@@ -342,3 +348,17 @@ def test_randomized(case: str) -> None:
                         rtol=relative_tolerance["grad"],
                         atol=tolerance["grad"],
                     )
+
+
+if __name__ == "__main__":
+    # Create and use the line profiler only when script is run directly
+    profiler = line_profiler.LineProfiler()
+    wrapped_func = profiler(test_randomized)
+    
+    # Run the test function manually with a test case
+    case_key = list(randomized_cases.keys())[0]  # Just use first test case for profiling
+    print(f"Profiling with test case: {case_key}")
+    wrapped_func("test_polynomial_regression")
+    
+    # Print profiling results
+    profiler.print_stats()

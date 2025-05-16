@@ -174,6 +174,7 @@ class StaticDataStore(Generic[DataType]):
                 _data = epsilon_table[self.backend.precision][data]
         elif isinstance(data, Dtype):
             _data = getattr(self.backend, data.name)
+        # elif isinstance(data, PaddingType):
         assert not isinstance(_data, Tensor)
         return _data
 

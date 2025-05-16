@@ -454,7 +454,7 @@ class Convolution2D(Model):
         out_channels: int | None = None,
         stride: int | tuple[int, int] | ToBeDetermined = (1, 1),
         padding: int
-        | PaddingType
+        | str
         | tuple[int, int]
         | tuple[tuple[int, int], tuple[int, int]]
         | ToBeDetermined = (0, 0),

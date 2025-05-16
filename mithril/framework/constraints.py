@@ -3707,8 +3707,8 @@ def padding_2d_constraint(
     updates = Updates()
     input_value = input.value
     kernel_size_value = kernel_size._value
-    if isinstance(input_value, PaddingType):
-        if input_value == PaddingType.VALID:
+    if isinstance(input_value, str):
+        if input_value == "valid":
             updates |= output.set_value((0, 0))
         else:
             if enhanced_isinstance(

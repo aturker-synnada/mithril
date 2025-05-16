@@ -16,8 +16,7 @@
         "std_dev": 1.0
 
       }
-    },
-    "iterations": 20
+    }
 
   },
   "test_logistic_regression": {
@@ -35,8 +34,7 @@
         "std_dev": 1.0
 
       }
-    },
-    "iterations": 20
+    }
   },
   "test_RBFKernel": {
     "model": {
@@ -65,8 +63,7 @@
           [ 1, 1 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_kernelizedSVM": {
     "model": {
@@ -89,8 +86,7 @@
         ]
       }
 
-    },
-    "iterations": 20
+    }
   },
   "test_mlp": {
     "model": {
@@ -115,8 +111,7 @@
           [ 1, 5 ]
         ]
       }
-    },
-    "iterations": 10
+    }
 
   },
   "test_distance_matrix_1": {
@@ -140,7 +135,6 @@
         ]
       }
     },
-    "iterations": 20,
     "32bit_relative_tolerance": 1e-5
 
   },
@@ -165,7 +159,6 @@
         ]
       }
     },
-    "iterations": 20,
     "32bit_relative_tolerance": 1e-5
   },
   "test_mds_core_1": {
@@ -188,8 +181,7 @@
         "mean": 100,
         "std_dev": 1.0
       }
-    },
-    "iterations": 20
+    }
   },
 
   "test_poly_features": {
@@ -207,7 +199,6 @@
         ]
       }
     },
-    "iterations": 20,
     "32bit_tolerance": 1e-5,
     "32bit_relative_tolerance": 1e-5
   },
@@ -228,8 +219,7 @@
           [ 1, 4 ]
         ]
       }
-    },
-    "iterations": 10
+    }
   },
   "test_conv1d": {
     "model": {
@@ -259,7 +249,6 @@
         ]
       }
     },
-    "iterations": 30,
     "32bit_tolerance": 1e-5,
     "32bit_relative_tolerance": 1e-5
   },
@@ -293,7 +282,6 @@
         ]
       }
     },
-    "iterations": 30,
     "32bit_tolerance": 1e-5,
     "32bit_relative_tolerance": 1e-5
   },
@@ -330,8 +318,7 @@
         "std_dev": 1.0
 
       }
-    },
-    "iterations": 10
+    }
   },
   "test_tsne": {
     "model": {
@@ -360,8 +347,7 @@
         "is_symmetric": true,
         "normalize": true
       }
-    },
-    "iterations": 10
+    }
   },
   "test_maxpool1d": {
     "model": {
@@ -378,8 +364,7 @@
           [ 6, 8 ]
         ]
       }
-    },
-    "iterations": 10
+    }
   },
   "test_maxpool2d": {
     "model": {
@@ -397,8 +382,7 @@
           [ 6, 8 ]
         ]
       }
-    },
-    "iterations": 10
+    }
   },
 
   "test_avgpool2d": {
@@ -417,8 +401,7 @@
           [ 6, 8 ]
         ]
       }
-    },
-    "iterations": 10
+    }
   },
   "test_buffer": {
     "model": {
@@ -436,8 +419,7 @@
           [ 6, 10 ]
         ]
       }
-    },
-    "iterations": 10
+    }
   },
   "test_mult": {
     "model": {
@@ -469,8 +451,7 @@
           [ 1, 1 ]
         ]
       }
-    },
-    "iterations": 10
+    }
   },
 
   "test_div": {
@@ -504,7 +485,6 @@
         ]
       }
     },
-    "iterations": 10,
     "64bit_relative_tolerance": 1e-9,
     "32bit_relative_tolerance": 5e-4
   },
@@ -540,7 +520,6 @@
         ]
       }
     },
-    "iterations": 10,
     "64bit_relative_tolerance": 1e-9,
     "32bit_tolerance": 5e-5,
     "32bit_relative_tolerance": 5e-5
@@ -576,7 +555,6 @@
         ]
       }
     },
-    "iterations": 10,
     "64bit_relative_tolerance": 1e-9,
     "32bit_tolerance": 5e-5,
     "32bit_relative_tolerance": 5e-5
@@ -615,7 +593,6 @@
         ]
       }
     },
-    "iterations": 10,
     "64bit_relative_tolerance": 1e-9,
     "32bit_relative_tolerance": 5e-5
   },
@@ -658,7 +635,6 @@
         ]
       }
     },
-    "iterations": 10,
     "64bit_relative_tolerance": 1e-9,
     "32bit_relative_tolerance": 5e-5
   },
@@ -679,8 +655,7 @@
           [ 1, 10 ]
         ]
       }
-    },
-    "iterations": 10
+    }
   },
   "test_abs": {
     "model": {
@@ -696,8 +671,7 @@
           [ 6, 8 ]
         ]
       }
-    },
-    "iterations": 10
+    }
   },
   "test_sin": {
     "model": {
@@ -711,8 +685,7 @@
           [ 6, 8 ]
         ]
       }
-    },
-    "iterations": 10
+    }
   },
   "test_cos": {
     "model": {
@@ -726,8 +699,7 @@
           [ 6, 8 ]
         ]
       }
-    },
-    "iterations": 10
+    }
   },
   "test_var": {
     "model": {
@@ -748,7 +720,6 @@
         ]
       }
     },
-    "iterations": 10,
     "32bit_tolerance": 5e-4
   },
   "test_concat_axis_none_5_inputs": {
@@ -868,8 +839,7 @@
           [ 1, 1 ]
         ]
       }
-    },
-    "iterations": 10
+    }
   },
   "test_concat_axis": {
     "model": {
@@ -990,8 +960,7 @@
           [ 2, 2 ]
         ]
       }
-    },
-    "iterations": 10
+    }
   },
   "test_transpose": {
     "model": {
@@ -1008,8 +977,7 @@
           [ 1, 10 ]
         ]
       }
-    },
-    "iterations": 10
+    }
   },
   "test_transpose_with_axes": {
     "model": {
@@ -1030,8 +998,7 @@
           [ 1, 10 ]
         ]
       }
-    },
-    "iterations": 10
+    }
   },
   "test_tanh": {
     "model": {
@@ -1048,8 +1015,7 @@
           [ 1, 5 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_sigmoid": {
     "model": {
@@ -1066,8 +1032,7 @@
           [ 1, 5 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_softplus": {
     "model": {
@@ -1084,8 +1049,7 @@
           [ 1, 5 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_permute_tensor": {
     "model": {
@@ -1111,8 +1075,7 @@
         [ 4, 4 ],
         [ 1, 1 ]
       ]
-    },
-    "iterations": 20
+    }
   },
   "test_squared_error": {
     "model": {
@@ -1128,8 +1091,7 @@
           [ 1, 10 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_hinge_loss": {
     "model": {
@@ -1147,8 +1109,7 @@
           [ 1, 1 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_absolute_error": {
     "model": {
@@ -1161,8 +1122,7 @@
           [ 1, 1 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_cross_entropy_1": {
     "model": {
@@ -1195,8 +1155,7 @@
           [ 9, 9 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_cross_entropy_2": {
     "model": {
@@ -1230,8 +1189,7 @@
           [ 9, 9 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_cross_entropy_3": {
     "model": {
@@ -1264,8 +1222,7 @@
           [ 9, 9 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_cross_entropy_4": {
     "model": {
@@ -1294,7 +1251,6 @@
         "is_positive": true
       }
     },
-    "iterations": 20,
     "64bit_relative_tolerance": 1e-12
   },
   "test_cross_entropy_5": {
@@ -1327,7 +1283,6 @@
         "is_positive": true
       }
     },
-    "iterations": 20,
     "64bit_relative_tolerance": 1e-12
   },
   "test_cross_entropy_6": {
@@ -1357,8 +1312,7 @@
         ],
         "is_positive": true
       }
-    },
-    "iterations": 20
+    }
   },
   "test_binary_cross_entropy_probs_1": {
     "model": {
@@ -1620,8 +1574,7 @@
           [ 1, 30 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_quad_hinge_loss": {
     "model": {
@@ -1639,8 +1592,7 @@
           [ 1, 1 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_kl_div": {
     "model": {
@@ -1666,8 +1618,7 @@
         "normalize": true
 
       }
-    },
-    "iterations": 20
+    }
   },
   "test_kl_div_5d": {
     "model": {
@@ -1699,8 +1650,7 @@
         "normalize": true
 
       }
-    },
-    "iterations": 20
+    }
   },
   "test_relu": {
     "model": {
@@ -1716,8 +1666,7 @@
           [ 1, 10 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_leaky_relu": {
     "model": {
@@ -1733,8 +1682,7 @@
           [ 1, 10 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_gelu": {
     "model": {
@@ -1751,7 +1699,6 @@
         ]
       }
     },
-    "iterations": 20,
     "64bit_relative_tolerance": 1e-12
 
   },
@@ -1770,7 +1717,6 @@
         ]
       }
     },
-    "iterations": 20,
     "64bit_relative_tolerance": 1e-12
 
   },
@@ -1785,8 +1731,7 @@
           [ 1, 10 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_softmax_2d_2": {
     "model": {
@@ -1802,8 +1747,7 @@
           [ 1, 10 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_softmax_5d_1": {
     "model": {
@@ -1819,8 +1763,7 @@
           [ 1, 10 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_sqrt": {
     "model": {
@@ -1837,8 +1780,7 @@
           [ 1, 5 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
 
   "test_stable_reciprocal": {
@@ -1853,8 +1795,7 @@
           [ 1, 5 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_transposed_diag": {
     "model": {
@@ -1904,8 +1845,7 @@
           [ 1, 5 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_reduce_sum_axis_none": {
     "model": {
@@ -1923,8 +1863,7 @@
           [ 1, 5 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_reduce_sum": {
     "model": {
@@ -1951,8 +1890,7 @@
           [ 1, 4 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_reduce_mean_axis_none": {
     "model": {
@@ -1969,8 +1907,7 @@
           [ 1, 5 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_reduce_mean": {
     "model": {
@@ -1997,8 +1934,7 @@
           [ 1, 4 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_reduce_max_axis_none": {
     "model": {
@@ -2015,8 +1951,7 @@
           [ 1, 5 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_reduce_max": {
     "model": {
@@ -2043,8 +1978,7 @@
           [ 1, 4 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_reduce_min_axis_none": {
     "model": {
@@ -2061,8 +1995,7 @@
           [ 1, 5 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_reduce_min": {
     "model": {
@@ -2089,8 +2022,7 @@
           [ 1, 4 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_scaled_dot_product_attention_1": {
     "model": {
@@ -2234,8 +2166,7 @@
           [ 9, 9 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_prod_axis_none": {
     "model": {
@@ -2249,8 +2180,7 @@
           [ 1, 5 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_prod": {
     "model": {
@@ -2274,8 +2204,7 @@
           [ 1, 4 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_layernorm": {
     "model": {
@@ -2295,7 +2224,6 @@
         ]
       }
     },
-    "iterations": 20,
     "32bit_relative_tolerance": 5e-6,
     "64bit_relative_tolerance": 1e-12
   },
@@ -2343,8 +2271,7 @@
           [ 8, 8 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_many_to_one_lstm": {
     "model": {
@@ -2428,8 +2355,7 @@
           [ 2, 2 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_one_to_many_rnn": {
     "model": {
@@ -2479,8 +2405,7 @@
           [ 8, 8 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_one_to_many_lstm": {
     "model": {
@@ -2571,8 +2496,7 @@
           [ 4, 4 ]
         ]
       }
-    },
-    "iterations": 20
+    }
   },
   "test_one_to_many_rnn_with_teacher_forcing": {
     "model": {
@@ -2639,9 +2563,7 @@
           [ 8, 8 ]
         ]
       }
-    },
-
-    "iterations": 20
+    }
 
   },
   "test_encoder_decoder_rnn": {
@@ -2725,8 +2647,7 @@
         [ 8, 8 ],
         [ 9, 9 ]
       ]
-    },
-    "iterations": 20
+    }
   },
   "test_encoder_decoder_lstm_with_teacher_forcing": {
     "model": {
@@ -2851,8 +2772,7 @@
         [ 8, 8 ],
         [ 9, 9 ]
       ]
-    },
-    "iterations": 20
+    }
   },
   "test_encoder_decoder_rnn_with_teacher_forcing": {
     "model": {
@@ -2954,8 +2874,7 @@
         [ 8, 8 ],
         [ 9, 9 ]
       ]
-    },
-    "iterations": 20
+    }
   },
   "test_l1": {
     "model": {
@@ -3258,8 +3177,7 @@
           [ 1, 5 ]
         ]
       }
-    },
-    "iterations": 10
+    }
   },
   "test_quadratic_form_regularizer": {
     "model": {
