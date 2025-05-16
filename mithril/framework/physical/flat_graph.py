@@ -105,6 +105,8 @@ class FlatGraph(GenericDataType[DataType]):
 
         self._input_keys = input_keys
 
+        self.target_map: dict[str, str] = {}
+        
         # Output dictionary used for mapping output keys to their corresponding keys
         self.output_dict: dict[str, str] = {key: key for key in sorted(output_keys)}
 
@@ -125,6 +127,8 @@ class FlatGraph(GenericDataType[DataType]):
         hanging_keys = (self.all_target_keys - self.all_source_keys) | set(
             self.connections.keys()
         ) - self.all_target_keys - self.all_source_keys
+
+        hanging_keys |= set(self.target_map.values())
 
         return hanging_keys - set(self.output_dict.values())
 
@@ -270,12 +274,16 @@ class FlatGraph(GenericDataType[DataType]):
         self.model_table[model] = out_conn
         self.connections[output_key] = out_conn
         self._all_target_keys.add(output_key)
+        self.target_map[output_key] = output_key
 
         # Create input connections
         for inner_key, outer_key in keys.items():
             self._all_keys.add(outer_key)
             if inner_key == Operator.output_key:
                 continue
+
+            # Update target map, if the key has target key, remove it from target map
+            self.target_map.pop(outer_key, None)
 
             conn = self.connections.get(outer_key, None)
             # New input
@@ -327,6 +335,7 @@ class FlatGraph(GenericDataType[DataType]):
 
         self.connections[inserted_key].target_keys.remove(base_op_out_conn.key)
         self.connections[output_key].target_keys.append(base_op_out_conn.key)
+        self.target_map.pop(keys[Operator.output_key])
         self.all_source_keys.add(output_key)
 
     def insert_operator_after(
@@ -367,6 +376,7 @@ class FlatGraph(GenericDataType[DataType]):
         # Update target and source keys
         self.connections[new_source_key].target_keys = [target_key]
         self.connections[new_source_key].source_keys = cache_source_keys
+        self.target_map.pop(keys[Operator.output_key])
         self.all_target_keys.add(target_key)
 
     def _collapse_model_keys(self, output_key: str, new_reference_key: str) -> None:
@@ -633,12 +643,18 @@ class FlatGraph(GenericDataType[DataType]):
         if conn.key in self._all_target_keys:
             self._all_target_keys.remove(conn.key)
 
+        if conn.key in self.target_map:
+            self.target_map.pop(conn.key)
+
         if conn.op in self.model_table:
             self.model_table.pop(conn.op)
 
     def remove_key(self, key: str) -> None:
         if key in self.output_dict:
             self.output_dict.pop(key)
+        if key in self.target_map:
+            self.target_map.pop(key)
+
         conn = self.get_connection(key)
         if conn is not None:
             self._remove_conn(conn)

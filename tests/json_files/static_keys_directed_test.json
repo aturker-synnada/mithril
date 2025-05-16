@@ -623,7 +623,7 @@
     "static_input_shapes": {},
 
     "results": {
-      "static_keys": [ "input1", "input2" ]
+      "static_keys": ["input1", "input2"]
     }
   },
   "test_composite_6": {

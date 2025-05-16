@@ -6165,9 +6165,7 @@ def test_cartesian_call():
     }
     physical_ref = {
         "input_0": [3, 4],
-        "output1_0": [3, 4],
         "input_1": [3, 4],
-        "output1_1": [3, 4],
         "output": [3, 4],
     }
     assert_shapes(model3, logical_ref, physical_ref)

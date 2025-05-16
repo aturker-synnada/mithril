@@ -682,6 +682,15 @@ class PhysicalModel(GenericDataType[DataType]):
         # the non-tensor constants defined in logical model.
         self.flat_graph.infer_static_keys()
 
+
+        self.discarded_keys |= {
+            key for key in self.flat_graph.hanging_keys if key not in self.output_keys
+        }
+
+        self.discarded_keys, self._output_keys = self.flat_graph.infer_ignore(
+            self.discarded_keys, self._output_keys
+        )
+
         # Check if there exists any unused keys in the provided data_keys.
         # TODO: Consider to remove this check. Same check is done in
         # data_store's add_static_data.
@@ -692,13 +701,6 @@ class PhysicalModel(GenericDataType[DataType]):
                     "no need to provide data for it."
                 )
 
-        self.discarded_keys |= {
-            key for key in self.flat_graph.hanging_keys if key not in self.output_keys
-        }
-
-        self.discarded_keys, self._output_keys = self.flat_graph.infer_ignore(
-            self.discarded_keys, self._output_keys
-        )
         if (
             not self.inference
             and len({key for key in self._output_keys if self.has_grad(key)}) == 0

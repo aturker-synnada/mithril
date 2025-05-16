@@ -152,7 +152,7 @@ def test_data_store_4():
         "bias",
         "linear_transpose_axes",
     }
-    print(pm.flat_graph.data_store.unused_keys)
+
     assert pm.flat_graph.data_store.unused_keys == ref_unused_keys
 
 

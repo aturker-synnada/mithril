@@ -107,6 +107,7 @@ def test_static_keys_inference(case: str) -> None:
         inference=True,
         jit=True,
     )
+    
     model_static_keys = sorted(compiled_model.flat_graph.all_static_keys)
     assert model_static_keys == sorted(results)
 
